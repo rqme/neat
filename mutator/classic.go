@@ -1,3 +1,4 @@
+/*
 Copyright (c) 2015, Brian Hummer (brian@redq.me)
 All rights reserved.
 
@@ -21,3 +22,56 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+package mutator
+
+import (
+	. "github.com/rqme/errors"
+	"github.com/rqme/neat"
+)
+
+type Classic struct {
+	Complexify
+	Weight
+	Trait
+}
+
+// Configures the helper from a JSON string
+func (m *Classic) Configure(cfg string) error {
+	errs := new(Errors)
+	err := m.Complexify.Configure(cfg)
+	if err != nil {
+		errs.Add(err)
+	}
+	err = m.Weight.Configure(cfg)
+	if err != nil {
+		errs.Add(err)
+	}
+	err = m.Trait.Configure(cfg)
+	if err != nil {
+		errs.Add(err)
+	}
+	return errs.Err()
+}
+
+func (c Classic) Mutate(g *neat.Genome) error {
+	errs := new(Errors)
+	old := g.Complexity()
+	err := c.Complexify.Mutate(g)
+	if err != nil {
+		errs.Add(err)
+	}
+	if g.Complexity() == old {
+		if err = c.Weight.Mutate(g); err != nil {
+			errs.Add(err)
+		}
+		if err = c.Trait.Mutate(g); err != nil {
+			errs.Add(err)
+		}
+	}
+	return errs.Err()
+}
+
+// Sets the marker for recording innovations
+func (m *Classic) SetMarker(marker neat.Marker) { m.Complexify.SetMarker(marker) }
