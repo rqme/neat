@@ -26,9 +26,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package searcher
 
-import (
-	"github.com/rqme/neat"
-)
+import "github.com/rqme/neat"
 
 type Serial struct {
 	neat.Evaluator

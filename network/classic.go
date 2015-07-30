@@ -138,7 +138,6 @@ func (n Classic) String() string {
 
 func (n Classic) Activate(inputs []float64) (outputs []float64, err error) {
 
-	//neat.DBG("================= %v =================", inputs)
 	// Create the data structures
 	errs := new(Errors)
 	val := make([]float64, len(n.Neurons))
@@ -150,7 +149,8 @@ func (n Classic) Activate(inputs []float64) (outputs []float64, err error) {
 
 	// Copy inputs into the network
 	if len(inputs) > n.inputs {
-		errs.Add(fmt.Errorf("network.classic.Activate - There are more input values (%d) than input neurons (%d)\n%v", len(inputs), n.inputs, n))
+		errs.Add(fmt.Errorf("network.classic.Activate - There are more input values (%d) than input neurons (%d)", len(inputs), n.inputs))
+		err = errs.Err()
 		return
 	}
 	copy(val[n.biases:], inputs)

@@ -349,7 +349,7 @@ func search(e *Experiment) (stop bool, err error) {
 	for _, r := range results {
 		i := m[r.ID()]
 		if err = r.Err(); err != nil {
-			errs.Add(fmt.Errorf("Error updating fitness for genome [%d]: %v", r.ID(), r))
+			errs.Add(fmt.Errorf("Error updating fitness for genome [%d]: %v", r.ID(), r.Err()))
 		}
 		e.Population.Genomes[i].Fitness = r.Fitness()
 		fit[i] = e.Population.Genomes[i].Fitness

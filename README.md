@@ -63,3 +63,18 @@ go build github.com/rqme/neat/x/proof/xor
 xor --config-path "." --archive-path "/tmp" --archive-name "xor" --web-path "/tmp"
 ```
 
+## Run the double pole experiment
+
+The configuration and procedure are nearly the same as the XOR experiement. The number of inputs and experiment name need to be changed in the config file, which should be named doublepole-config.json:
+
+```json
+    "NumInputs": 7,
+    "ExperimentName": "Double Pole",
+```
+
+Also, there is a new command-line argument for indicating whether velocity should be used: --velocity true|false
+
+```sh
+go build github.com/rqme/neat/x/proof/doublepole
+doublepole --config-path "." --archive-path "/tmp" --archive-name "doublepole" --web-path "/tmp" --velocity true
+```
