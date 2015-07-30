@@ -91,7 +91,7 @@ func NewExperiment(eval neat.Evaluator, options ...func(*neat.Experiment) error)
 
 		// Add the generator
 		func(e *neat.Experiment) error {
-			s := &speciater.Classic{}
+			s := &speciater.Dynamic{}
 			s.Comparer = &comparer.Classic{}
 			m := &mutator.Classic{}
 			c := &crosser.Classic{}

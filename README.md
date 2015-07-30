@@ -5,9 +5,9 @@ This a Go implementation of NeuralEvolution of Augmenting Topologies (NEAT). Fro
 
 *NEAT stands for NeuroEvolution of Augmenting Topologies. It is a method for evolving artificial neural networks with a genetic algorithm. NEAT implements the idea that it is most effective to start evolution with small, simple networks and allow them to become increasingly complex over generations. That way, just as organisms in nature increased in complexity since the first cell, so do neural networks in NEAT. This process of continual elaboration allows finding highly sophisticated and complex neural networks.*
 
-The core of this library, often called Classic in the code, was written from the ground up using Dr. Kenneth Stanley's [PhD dissertation](http://nn.cs.utexas.edu/keyword?stanley:phd04) as a guide. NEAT has changed a bit since that paper and I have made some adjustments based on the F.A.Q. I have also add some flexibility in the desing to allow for growing the library via helpers which will provide for adding HyperNEAT, Novelty Search, etc. to the library without changing the core API.
+The core of this library, often called Classic in the code, was written from the ground up using Dr. Kenneth Stanley's [PhD dissertation](http://nn.cs.utexas.edu/keyword?stanley:phd04) as a guide. NEAT has changed a bit since that paper and I have made some adjustments based on the F.A.Q. I have also add some flexibility in the design to allow for growing the library via helpers which will provide for adding HyperNEAT, Novelty Search, etc. to the library without changing the core API.
 
-The library and proof-of-concept experiments utilizes SVG to visualize the network of the best genome as well as the experiment's history. This visualization is based on the [NeuroEvolution Visualization Toolkit (NEVT)](http://nevt.sourceforge.net). Each image is output into an .html file for viewing from your desktop or presented through a web server.
+The library and proof-of-concept experiments utilize SVG to visualize the network of the best genome as well as the experiment's history. This visualization is based on the [NeuroEvolution Visualization Toolkit (NEVT)](http://nevt.sourceforge.net). Each image is output into an .html file for viewing from your desktop or presented through a web server.
 
 # How to use
 
