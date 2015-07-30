@@ -19,7 +19,7 @@ go get github.com/rqme/neat
 
 ## Run the XOR experiment
 
-# Create a configuration file
+Create a configuration file called xor-config.json and place it in your working directory:
 
 ```json
 {
@@ -55,6 +55,8 @@ go get github.com/rqme/neat
     "WeightRange": 2.5
 }
 ```
+
+Then build and run the application
 
 ```sh
 go build github.com/rqme/neat/x/proof/xor
