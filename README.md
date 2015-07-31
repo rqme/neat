@@ -17,64 +17,41 @@ The library and proof-of-concept experiments utilize SVG to visualize the networ
 go get github.com/rqme/neat
 ```
 
-## Run the XOR experiment
+## Proof-of-concept experiments
 
-Create a configuration file called xor-config.json and place it in your working directory:
+Inside the github.com/rqme/neat/x/proofs direcory are a series of experiments. I have tried to include at least one for each new feature of the library, usually from (or based on) the one the feature's creator used. Each experiment is set up to run as a series of indpendent trials with the results displayed in the console. 
 
-```json
-{
-    "AddConnProbability": 0.025,
-    "AddNodeProbability": 0.015,
-    "CompatibilityModifier": 0.3,
-    "CompatibilityThreshold": 3.0,
-    "DisjointCoefficient": 1,
-    "EnableProbability": 0.2,
-    "ExcessCoefficient": 1,
-    "ExperimentName": "xor",
-    "FitnessType": 0,
-    "HiddenActivation": 2,
-    "InterspeciesMatingRate": 0.001,
-    "Iterations": 100,
-    "MateByAveragingProbability": 0.4,
-    "MaxStagnation": 15,
-    "MutateOnlyProbability": 0.25,
-    "MutateSettingProbability": 0,
-    "MutateTraitProbability": 0,
-    "MutateWeightProbability": 0.9,
-    "NetworkIterations": 1,
-    "NumInputs": 2,
-    "NumOutputs": 1,
-    "OutputActivation": 2,
-    "PopulationSize": 150,
-    "ReplaceSettingProbability": 0,
-    "ReplaceTraitProbability": 0,
-    "ReplaceWeightProbability": 0.2,
-    "SurvivalThreshold": 0.2,
-    "TargetNumberOfSpecies": 15,
-    "WeightCoefficient": 0.4,
-    "WeightRange": 2.5
-}
-```
+Feature         | Experiment  | Use check-stop flag (see below)
+----------------|-------------|--------------------------------
+NEAT            | XOR         | yes
+NEAT            | Double Pole | yes
+Phased Mutation | OCR         | no
 
-Then build and run the application
+### To build
 
 ```sh
 go build github.com/rqme/neat/x/proof/xor
-xor --config-path "." --archive-path "/tmp" --archive-name "xor" --web-path "/tmp"
 ```
 
-## Run the double pole experiment
-
-The configuration and procedure are nearly the same as the XOR experiement. The number of inputs and experiment name need to be changed in the config file, which should be named doublepole-config.json:
-
-```json
-    "NumInputs": 7,
-    "ExperimentName": "Double Pole",
-```
-
-Also, there is a new command-line argument for indicating whether velocity should be used: --velocity true|false
+###To run
 
 ```sh
-go build github.com/rqme/neat/x/proof/doublepole
-doublepole --config-path "." --archive-path "/tmp" --archive-name "doublepole" --web-path "/tmp" --velocity true
+xor --config-path "." --archive-path "/tmp" --archive-name "xor" --web-path "/tmp" --check-stop
 ```
+There is a configuration file in each. Place this in the archive-path or, preferrably, config-path directory.
+
+#### Command-line flags
+
+Flag         | Default | Description
+-------------|---------|------------------------------------------------------------------------------------------
+archive-path | ""      | the directory to which generational settings and state will be written
+archive-name | ""      | prefix for the archive files
+config-path  | ""      | overrides the archive-path. used to restore settings and state from a different location
+web-path     | ""      | the directory where html files from the web visualizer will be written
+trials       | 10      | the number of trials to run
+check-stop   | false   | consider not meeting the stop condition a failure. 
+duration     | 90      | maximum number of minutes to run a trial. used by OCR only
+velocity     | false   | include velocity (Markov) in inputs. used by double pole only
+
+Note: as the archiving process writes out all settings, including zero files, it is advisable to use a config-path to store an initial settings file to ensure it is not overwritten. This is especially important if setting traits are used as original settings will be overwritten during evolution.
+

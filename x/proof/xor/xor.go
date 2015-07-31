@@ -57,7 +57,7 @@ func (e evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
 
 func main() {
 	flag.Parse()
-	if err := trials.Run(10, true, func(i int) (*neat.Experiment, error) {
+	if err := trials.Run(func(i int) (*neat.Experiment, error) {
 		e, err := example.NewExperiment(
 			&evaluator{},
 			func(e *neat.Experiment) error {

@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package trials
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"strconv"
@@ -34,6 +35,11 @@ import (
 	"time"
 
 	"github.com/rqme/neat"
+)
+
+var (
+	Trials    = flag.Int("trials", 10, "Number of trials to run. Default is 10.")
+	CheckStop = flag.Bool("check-stop", false, "Consider trial a failure if stop condition not met")
 )
 
 const (
@@ -52,9 +58,10 @@ const (
 	Cnt
 )
 
-func Run(n int, chk bool, f func(int) (*neat.Experiment, error)) error {
+func Run(f func(int) (*neat.Experiment, error)) error {
 
 	// Create the collection variables
+	n := *Trials
 	fail := make([]bool, n)
 	errs := make([]error, n)
 	data := make([][]float64, n)
@@ -76,7 +83,7 @@ func Run(n int, chk bool, f func(int) (*neat.Experiment, error)) error {
 				errs[i] = fmt.Errorf("Error during trial %d: %v", i, err)
 				fail[i] = true
 			} else {
-				if chk && !e.Stopped {
+				if *CheckStop && !e.Stopped {
 					fail[i] = true
 				} else {
 					data[i][Seconds] = time.Now().Sub(t0).Seconds()

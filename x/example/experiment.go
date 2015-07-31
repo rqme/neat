@@ -29,7 +29,6 @@ package example
 import (
 	"flag"
 	"fmt"
-	"runtime"
 
 	. "github.com/rqme/errors"
 	"github.com/rqme/neat"
@@ -51,10 +50,6 @@ var (
 	ArchiveName = flag.String("archive-name", "", "Name for archive file (e.g., <name>-pop.json, <name>-config.json")
 	WebPath     = flag.String("web-path", "", "Path to web directory.")
 )
-
-func init() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-}
 
 // Creates a new experiment using the default helpers but can be overridden using the options.
 func NewExperiment(eval neat.Evaluator, options ...func(*neat.Experiment) error) (*neat.Experiment, error) {
