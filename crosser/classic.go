@@ -32,18 +32,16 @@ import (
 	"math/rand"
 )
 
-type Classic struct {
-
+type ClassicSettings interface {
 	// Probability that a disabled connection will be renabled in the child
-	EnableProbability float64 "neat:config"
+	EnableProbability() float64
 
 	// Probability that the child's connection weight or trait is an average of the values from both parents
-	MateByAveragingProbability float64 "neat:config"
+	MateByAveragingProbability() float64
 }
 
-// Configures the helper
-func (d *Classic) Configure(cfg string) error {
-	return neat.Configure(cfg, d)
+type Classic struct {
+	ClassicSettings
 }
 
 // Returns a new genome that is a cross between the two parent genomes
@@ -81,7 +79,7 @@ func (c Classic) Cross(p1, p2 neat.Genome) (child neat.Genome, err error) {
 	return
 }
 
-func (c Classic) addConns(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *neat.Genome) {
+func (c *Classic) addConns(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *neat.Genome) {
 	child.Conns = make(map[int]neat.Connection, len(p1.Conns))
 	var i, j int
 	var c1, c2 neat.Connection
@@ -101,7 +99,7 @@ func (c Classic) addConns(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *
 			j += 1
 
 		default: // conns1[i].Innovation == conns2[j].Innovation:
-			if rng.Float64() < c.MateByAveragingProbability {
+			if rng.Float64() < c.MateByAveragingProbability() {
 				conn := neat.Connection{
 					Innovation: c1.Innovation,
 					Source:     c1.Source,
@@ -136,9 +134,9 @@ func (c Classic) addConns(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *
 }
 
 // Enables connections based on probability
-func (c Classic) enableConns(rng *rand.Rand, child *neat.Genome) {
+func (c *Classic) enableConns(rng *rand.Rand, child *neat.Genome) {
 	for k, conn := range child.Conns {
-		if !conn.Enabled && rng.Float64() < c.EnableProbability {
+		if !conn.Enabled && rng.Float64() < c.EnableProbability() {
 			conn.Enabled = true
 			child.Conns[k] = conn
 		}
@@ -146,7 +144,7 @@ func (c Classic) enableConns(rng *rand.Rand, child *neat.Genome) {
 }
 
 // Ensures that child has proper nodes for each connection
-func (c Classic) ensureNodes(rng *rand.Rand, p1, p2 neat.Genome, child *neat.Genome) {
+func (c *Classic) ensureNodes(rng *rand.Rand, p1, p2 neat.Genome, child *neat.Genome) {
 	child.Nodes = make(map[int]neat.Node, len(p1.Nodes))
 	for k, node := range p1.Nodes {
 		child.Nodes[k] = node
@@ -171,11 +169,11 @@ func (c Classic) ensureNodes(rng *rand.Rand, p1, p2 neat.Genome, child *neat.Gen
 }
 
 // Sets the child's traits from one or both of the parents
-func (c Classic) setTraits(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *neat.Genome) {
+func (c *Classic) setTraits(rng *rand.Rand, same bool, p1, p2 neat.Genome, child *neat.Genome) {
 	child.Traits = make([]float64, len(p1.Traits))
 	for i := 0; i < len(child.Traits); i++ {
 		if same {
-			if rng.Float64() < c.MateByAveragingProbability {
+			if rng.Float64() < c.MateByAveragingProbability() {
 				child.Traits[i] = (p1.Traits[i] + p2.Traits[i]) / 2.0
 			} else {
 				if rng.Float64() < 0.5 {

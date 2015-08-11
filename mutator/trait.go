@@ -32,47 +32,38 @@ import (
 	"math/rand"
 )
 
-type Trait struct {
-
-	// Repository of traits
-	Traits neat.Traits "neat:config"
-
-	// Probability that the trait will be mutated
-	MutateTraitProbability float64 "neat:config"
-
-	// Probability that the trait will be replaced
-	ReplaceTraitProbability float64 "neat:config"
-
-	// Probability that the setting will be mutated
-	MutateSettingProbability float64 "neat:config"
-
-	// Probability that the setting will be replaced
-	ReplaceSettingProbability float64 "neat:config"
+type TraitSettings interface {
+	Traits() neat.Traits                // Repository of traits
+	MutateTraitProbability() float64    // Probability that the trait will be mutated
+	ReplaceTraitProbability() float64   // Probability that the trait will be replaced
+	MutateSettingProbability() float64  // Probability that the setting will be mutated
+	ReplaceSettingProbability() float64 // Probability that the setting will be replaced
 }
 
-// Configures the helper from a JSON string
-func (m *Trait) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
+type Trait struct {
+	TraitSettings
 }
 
 // Mutates a genome's traits
 func (m Trait) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
-	for t, trait := range m.Traits {
-		if trait.IsSetting {
-			if rng.Float64() < m.MutateSettingProbability {
-				if rng.Float64() < m.ReplaceSettingProbability {
-					g.Traits[t] = m.replaceTrait(rng, trait)
+	ts := m.Traits()
+	for i, _ := range g.Traits {
+		t := ts[i]
+		if t.IsSetting {
+			if rng.Float64() < m.MutateTraitProbability() {
+				if rng.Float64() < m.ReplaceTraitProbability() {
+					m.replaceTrait(rng, t, &g.Traits[i])
 				} else {
-					g.Traits[t] = m.mutateTrait(rng, trait, g.Traits[t])
+					m.mutateTrait(rng, t, &g.Traits[i])
 				}
 			}
 		} else {
-			if rng.Float64() < m.MutateSettingProbability {
-				if rng.Float64() < m.ReplaceSettingProbability {
-					g.Traits[t] = m.replaceTrait(rng, trait)
+			if rng.Float64() < m.MutateTraitProbability() {
+				if rng.Float64() < m.ReplaceTraitProbability() {
+					m.replaceTrait(rng, t, &g.Traits[i])
 				} else {
-					g.Traits[t] = m.mutateTrait(rng, trait, g.Traits[t])
+					m.mutateTrait(rng, t, &g.Traits[i])
 				}
 			}
 		}
@@ -80,18 +71,16 @@ func (m Trait) Mutate(g *neat.Genome) error {
 	return nil
 }
 
-// Returns a modified trait
-func (m Trait) mutateTrait(rng *rand.Rand, trait neat.Trait, v float64) float64 {
-	v = v + rng.NormFloat64()
-	if v < trait.Min {
-		v = trait.Min
-	} else if v > trait.Max {
-		v = trait.Max
-	}
-	return v
+func (m *Trait) replaceTrait(rng *rand.Rand, t neat.Trait, v *float64) {
+	*v = (rng.Float64() * (t.Max - t.Min)) + t.Min
 }
 
-// Returns a new trait
-func (m Trait) replaceTrait(rng *rand.Rand, trait neat.Trait) float64 {
-	return (rng.Float64() * (trait.Max - trait.Min)) + trait.Min
+func (m *Trait) mutateTrait(rng *rand.Rand, t neat.Trait, v *float64) {
+	tv := *v
+	tv += rng.NormFloat64()
+	if tv < t.Min {
+		tv = t.Min
+	} else if tv > t.Max {
+		tv = t.Max
+	}
 }

@@ -24,27 +24,27 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-package example
+package result
 
-type Result struct {
+type Classic struct {
 	id      int
 	fitness float64
 	err     error
 	stop    bool
 }
 
-func NewResult(id int, fitness float64, err error, stop bool) Result {
-	return Result{id, fitness, err, stop}
+func New(id int, fitness float64, err error, stop bool) Classic {
+	return Classic{id, fitness, err, stop}
 }
 
 // Returns the ID of the phenome
-func (r Result) ID() int { return r.id }
+func (r Classic) ID() int { return r.id }
 
 // Returns the fitness of the phenome for the problem
-func (r Result) Fitness() float64 { return r.fitness }
+func (r Classic) Fitness() float64 { return r.fitness }
 
 // Returns the error, if any, occuring while evaluating the phenome.
-func (r Result) Err() error { return r.err }
+func (r Classic) Err() error { return r.err }
 
 // Returns true if the stop condition was met
-func (r Result) Stop() bool { return r.stop }
+func (r Classic) Stop() bool { return r.stop }

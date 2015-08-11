@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package mutator
 
 import (
-	. "github.com/rqme/errors"
 	"github.com/rqme/neat"
 )
 
@@ -37,41 +36,31 @@ type Classic struct {
 	Trait
 }
 
-// Configures the helper from a JSON string
-func (m *Classic) Configure(cfg string) error {
-	errs := new(Errors)
-	err := m.Complexify.Configure(cfg)
-	if err != nil {
-		errs.Add(err)
+func New(cs ComplexifySettings, ws WeightSettings, ts TraitSettings) *Classic {
+	return &Classic{
+		Complexify: Complexify{ComplexifySettings: cs},
+		Weight:     Weight{WeightSettings: ws},
+		Trait:      Trait{TraitSettings: ts},
 	}
-	err = m.Weight.Configure(cfg)
-	if err != nil {
-		errs.Add(err)
-	}
-	err = m.Trait.Configure(cfg)
-	if err != nil {
-		errs.Add(err)
-	}
-	return errs.Err()
+}
+
+func (m *Classic) SetContext(x neat.Context) error {
+	m.ctx = x
+	return m.Complexify.SetContext(x)
 }
 
 func (c Classic) Mutate(g *neat.Genome) error {
-	errs := new(Errors)
 	old := g.Complexity()
-	err := c.Complexify.Mutate(g)
-	if err != nil {
-		errs.Add(err)
+	if err := c.Complexify.Mutate(g); err != nil {
+		return err
 	}
 	if g.Complexity() == old {
-		if err = c.Weight.Mutate(g); err != nil {
-			errs.Add(err)
+		if err := c.Weight.Mutate(g); err != nil {
+			return err
 		}
-		if err = c.Trait.Mutate(g); err != nil {
-			errs.Add(err)
+		if err := c.Trait.Mutate(g); err != nil {
+			return err
 		}
 	}
-	return errs.Err()
+	return nil
 }
-
-// Sets the marker for recording innovations
-func (m *Classic) SetMarker(marker neat.Marker) { m.Complexify.SetMarker(marker) }

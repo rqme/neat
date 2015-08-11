@@ -27,35 +27,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package speciater
 
 import (
-	"fmt"
-
-	. "github.com/rqme/errors"
 	"github.com/rqme/neat"
 )
 
-type Classic struct {
-
-	// Threshold above which two genomes are not compatible
-	CompatibilityThreshold float64 "neat:config"
-
-	// Helper used to compare two genomes
-	neat.Comparer
+type ClassicSettings interface {
+	CompatibilityThreshold() float64 // Threshold above which two genomes are not compatible
 }
 
-// Configures the helper from a JSON string
-func (s *Classic) Configure(cfg string) error {
-	errs := new(Errors)
-	err := neat.Configure(cfg, s)
-	if err != nil {
-		errs.Add(fmt.Errorf("speciater.classic.Configure - %s", err))
-	}
-	if x, ok := s.Comparer.(neat.Configurable); ok {
-		err = x.Configure(cfg)
-		if err != nil {
-			errs.Add(err)
-		}
-	}
-	return errs.Err()
+type Classic struct {
+	ClassicSettings
+	ctx neat.Context
+}
+
+func (s *Classic) SetContext(x neat.Context) error {
+	s.ctx = x
+	return nil
 }
 
 // Assigns the genomes to a species. Returns new collection of species.
@@ -89,11 +75,11 @@ func (s Classic) Speciate(curr []neat.Species, genomes []neat.Genome) (next []ne
 	for i, genome := range genomes {
 		found := false
 		for j, species := range next {
-			δ, err = s.Compare(genome, species.Example)
+			δ, err = s.ctx.Comparer().Compare(genome, species.Example)
 			if err != nil {
 				return
 			}
-			if δ < s.CompatibilityThreshold {
+			if δ < s.CompatibilityThreshold() {
 				genomes[i].SpeciesIdx = j
 				cnts[j] += 1
 				found = true

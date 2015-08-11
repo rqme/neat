@@ -27,7 +27,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package mutator
 
 import (
-	. "github.com/rqme/errors"
 	"github.com/rqme/neat"
 )
 
@@ -38,48 +37,40 @@ type Complete struct {
 	Activation
 }
 
-// Configures the helper from a JSON string
-func (m *Complete) Configure(cfg string) error {
-	errs := new(Errors)
-	if err := m.Phased.Configure(cfg); err != nil {
-		errs.Add(err)
+func NewComplete(ps PhasedSettings, ws WeightSettings, ts TraitSettings, as ActivationSettings) *Complete {
+	return &Complete{
+		Phased:     Phased{PhasedSettings: ps},
+		Weight:     Weight{WeightSettings: ws},
+		Trait:      Trait{TraitSettings: ts},
+		Activation: Activation{ActivationSettings: as},
 	}
-	if err := m.Weight.Configure(cfg); err != nil {
-		errs.Add(err)
-	}
-	if err := m.Trait.Configure(cfg); err != nil {
-		errs.Add(err)
-	}
-	if err := m.Activation.Configure(cfg); err != nil {
-		errs.Add(err)
-	}
-	return errs.Err()
 }
 
-func (c Complete) Mutate(g *neat.Genome) error {
-	errs := new(Errors)
-	old := g.Complexity()
-	if err := c.Phased.Mutate(g); err != nil {
-		errs.Add(err)
-	}
-	if g.Complexity() == old {
-		if err := c.Weight.Mutate(g); err != nil {
-			errs.Add(err)
-		}
-		if err := c.Trait.Mutate(g); err != nil {
-			errs.Add(err)
-		}
-		if err := c.Activation.Mutate(g); err != nil {
-			errs.Add(err)
-		}
-	}
-	return errs.Err()
+func (m *Complete) SetContext(x neat.Context) error {
+	m.ctx = x
+	return m.Complexify.SetContext(x)
 }
-
-// Sets the marker for recording innovations
-func (m *Complete) SetMarker(marker neat.Marker) { m.Complexify.SetMarker(marker) }
 
 // Sets the population
 func (m *Complete) SetPopulation(p neat.Population) error {
 	return m.Phased.SetPopulation(p)
+}
+
+func (c Complete) Mutate(g *neat.Genome) error {
+	old := g.Complexity()
+	if err := c.Phased.Mutate(g); err != nil {
+		return err
+	}
+	if g.Complexity() == old {
+		if err := c.Weight.Mutate(g); err != nil {
+			return err
+		}
+		if err := c.Trait.Mutate(g); err != nil {
+			return err
+		}
+		if err := c.Activation.Mutate(g); err != nil {
+			return err
+		}
+	}
+	return nil
 }

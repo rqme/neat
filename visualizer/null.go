@@ -1,4 +1,5 @@
 /*
+
 Copyright (c) 2015, Brian Hummer (brian@redq.me)
 All rights reserved.
 
@@ -22,54 +23,26 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ATTRIBUTIONS and other notes:
+* This visualizer is an adaptation of the NeuroEvolution Visualization Toolkit which can be
+  found at http://sourceforge.net/projects/nevt/ which was released under LGPL v2 license. All
+  functionality derived from NEVT retains the original copyright.
+
+* The SVG creation is made easier with SVGo, github.com/ajstarks/svgo, which was released
+  under the Creative Commons license.
+
+* The statistics creation takes advantage of the stats library, github.com/montanaflynn/stats
 */
 
-package speciater
+package visualizer
 
-import (
-	"github.com/rqme/neat"
-)
+import "github.com/rqme/neat"
 
-const (
-	CompatibilityThresholdFloor = 0.3
-)
+// Visualizes the population by creating web pages
+type Null struct{}
 
-type DynamicSettings interface {
-	SetCompatibilityThreshold(float64) // Threshold above which two genomes are not compatible
-	TargetNumberOfSpecies() int        // The desired number of species
-	CompatibilityModifier() float64    // Amount to change the compatibility threshold for next iteration
-}
-
-type Dynamic struct {
-	DynamicSettings
-	Classic
-}
-
-func NewDynamic(ds DynamicSettings, cs ClassicSettings) *Dynamic {
-	return &Dynamic{
-		DynamicSettings: ds,
-		Classic:         Classic{ClassicSettings: cs},
-	}
-}
-
-func (s *Dynamic) Speciate(curr []neat.Species, genomes []neat.Genome) (next []neat.Species, err error) {
-
-	// Speciate using the internal speciater
-	next, err = s.Classic.Speciate(curr, genomes)
-	if err != nil {
-		return
-	}
-
-	// Adjust the compatibily theshold as necessary
-	ct := s.CompatibilityThreshold()
-	if len(next) < s.TargetNumberOfSpecies() {
-		ct -= s.CompatibilityModifier()
-		if ct < CompatibilityThresholdFloor {
-			ct = CompatibilityThresholdFloor
-		}
-	} else if len(next) > s.TargetNumberOfSpecies() {
-		ct += s.CompatibilityModifier()
-	}
-	s.SetCompatibilityThreshold(ct)
-	return
+// Creates visuals of the population which can be displayed in a browser
+func (v Null) Visualize(pop neat.Population) error {
+	return nil
 }

@@ -27,64 +27,39 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package mutator
 
 import (
-	"fmt"
-
-	. "github.com/rqme/errors"
-	"github.com/rqme/neat"
-
 	"math/rand"
+
+	"github.com/rqme/neat"
 )
 
-type Complexify struct {
-
-	// The mutation range of the weight. If x, range is [-x,x]
-	WeightRange float64 "neat:config"
-
-	// Probablity a node will be added to the genome
-	AddNodeProbability float64 "neat:config"
-
-	// Probability a connection will be added to the genome
-	AddConnProbability float64 "neat:config"
-
-	// Activation type to assign to new nodes
-	HiddenActivation neat.ActivationType "neat:config"
-
-	// Internal state
-	marker neat.Marker
+// Complexifying mutation settings
+type ComplexifySettings interface {
+	WeightRange() float64                  // The mutation range of the weight. If x, range is [-x,x]
+	AddNodeProbability() float64           // Probablity a node will be added to the genome
+	AddConnProbability() float64           // Probability a connection will be added to the genome
+	AllowRecurrent() bool                  // Allow recurrent connections to be added
+	HiddenActivation() neat.ActivationType // Activation type to assign to new nodes
 }
 
-// Configures the helper from a JSON string
-func (m *Complexify) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
+type Complexify struct {
+	ComplexifySettings
+	ctx neat.Context
+}
+
+func (m *Complexify) SetContext(x neat.Context) error {
+	m.ctx = x
+	return nil
 }
 
 // Mutates a genome's weights
 func (m Complexify) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
-	if rng.Float64() < m.AddNodeProbability {
+	if rng.Float64() < m.AddNodeProbability() {
 		m.addNode(rng, g)
-	} else if rng.Float64() < m.AddConnProbability {
+	} else if rng.Float64() < m.AddConnProbability() {
 		m.addConn(rng, g)
 	}
 	return nil
-}
-
-// Validates the helper
-func (m *Complexify) Validate() error {
-	errs := new(Errors)
-	if m.WeightRange <= 0 {
-		errs.Add(fmt.Errorf("mutator.Complexify.Validate - WeightRange must be greater than zero: %f", m.WeightRange))
-	}
-	if m.AddNodeProbability < 0 || m.AddNodeProbability > 1.0 {
-		errs.Add(fmt.Errorf("mutator.Complexify.Validate - AddNodeProbability must be betwween zero and one: %f", m.AddNodeProbability))
-	}
-	if m.AddConnProbability < 0 || m.AddConnProbability > 1.0 {
-		errs.Add(fmt.Errorf("mutator.Complexify.Validate - AddConnProbability must be betwween zero and one: %f", m.AddNodeProbability))
-	}
-	if m.HiddenActivation == neat.Direct {
-		errs.Add(fmt.Errorf("mutator.Complexify.Validate - HiddenActivation must not be DIRECT"))
-	}
-	return errs.Err()
 }
 
 // Adds a new node to the genome
@@ -98,7 +73,7 @@ func (m *Complexify) Validate() error {
 // immediately integrated into the network, its effect on fitness can be evaluated right away.
 // Preexisting network structure is not destroyed and performs the same function, while the new
 // structure provides an opportunity to elaborate on the original behaviors. (Stanley, 35)
-func (m Complexify) addNode(rng *rand.Rand, g *neat.Genome) {
+func (m *Complexify) addNode(rng *rand.Rand, g *neat.Genome) {
 
 	// Pick a connection to split
 	var inno int
@@ -133,17 +108,17 @@ func (m Complexify) addNode(rng *rand.Rand, g *neat.Genome) {
 	// Add the new node
 	src := g.Nodes[c0.Source]
 	tgt := g.Nodes[c0.Target]
-	n0 := neat.Node{NeuronType: neat.Hidden, ActivationType: m.HiddenActivation, X: (src.X + tgt.X) / 2.0, Y: (src.Y + tgt.Y) / 2.0}
-	m.marker.MarkNode(&n0)
+	n0 := neat.Node{NeuronType: neat.Hidden, ActivationType: m.HiddenActivation(), X: (src.X + tgt.X) / 2.0, Y: (src.Y + tgt.Y) / 2.0}
+	n0.Innovation = m.ctx.Innovation(neat.NodeInnovation, n0.Key())
 	g.Nodes[n0.Innovation] = n0
 
 	// Add the new connections
 	c1 := neat.Connection{Source: src.Innovation, Target: n0.Innovation, Enabled: true, Weight: 1.0}
-	m.marker.MarkConn(&c1)
+	c1.Innovation = m.ctx.Innovation(neat.ConnInnovation, c1.Key())
 	g.Conns[c1.Innovation] = c1
 
 	c2 := neat.Connection{Source: n0.Innovation, Target: tgt.Innovation, Enabled: true, Weight: c0.Weight}
-	m.marker.MarkConn(&c2)
+	c2.Innovation = m.ctx.Innovation(neat.ConnInnovation, c2.Key())
 	g.Conns[c2.Innovation] = c2
 }
 
@@ -151,7 +126,7 @@ func (m Complexify) addNode(rng *rand.Rand, g *neat.Genome) {
 //
 // In the add connection mutation, a single new connection gene is added connecting two previously
 // unconnected nodes. (Stanley, 35)
-func (m Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
+func (m *Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 
 	// Identify two unconnected nodes
 	conns := make(map[int]neat.Connection)
@@ -166,6 +141,9 @@ func (m Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 			} else if src.NeuronType == neat.Output && tgt.NeuronType == neat.Output {
 				continue
 			}
+			if !m.AllowRecurrent() && tgt.Y <= src.Y {
+				continue
+			}
 			found := false
 			for _, c2 := range g.Conns {
 				if c2.Source == src.Innovation && c2.Target == tgt.Innovation {
@@ -174,7 +152,12 @@ func (m Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 				}
 			}
 			if !found {
-				conns[c] = neat.Connection{Source: src.Innovation, Target: tgt.Innovation, Enabled: true, Weight: (rng.Float64()*2.0 - 1.0) * m.WeightRange}
+				conns[c] = neat.Connection{
+					Source:  src.Innovation,
+					Target:  tgt.Innovation,
+					Enabled: true,
+					Weight:  (rng.Float64()*2.0 - 1.0) * m.WeightRange(),
+				}
 				c += 1
 			}
 		}
@@ -182,11 +165,8 @@ func (m Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 
 	// Go's range over maps is random, so take the first, if any, availble connection
 	for _, conn := range conns {
-		m.marker.MarkConn(&conn)
+		conn.Innovation = m.ctx.Innovation(neat.ConnInnovation, conn.Key())
 		g.Conns[conn.Innovation] = conn
 		break
 	}
 }
-
-// Sets the marker for recording innovations
-func (m *Complexify) SetMarker(marker neat.Marker) { m.marker = marker }

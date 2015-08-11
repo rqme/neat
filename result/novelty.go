@@ -24,52 +24,22 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-package speciater
+package result
 
-import (
-	"github.com/rqme/neat"
-)
-
-const (
-	CompatibilityThresholdFloor = 0.3
-)
-
-type DynamicSettings interface {
-	SetCompatibilityThreshold(float64) // Threshold above which two genomes are not compatible
-	TargetNumberOfSpecies() int        // The desired number of species
-	CompatibilityModifier() float64    // Amount to change the compatibility threshold for next iteration
-}
-
-type Dynamic struct {
-	DynamicSettings
+type Novelty struct {
 	Classic
+	behavior []float64
+	novelty  float64
 }
 
-func NewDynamic(ds DynamicSettings, cs ClassicSettings) *Dynamic {
-	return &Dynamic{
-		DynamicSettings: ds,
-		Classic:         Classic{ClassicSettings: cs},
-	}
+func NewNovelty(id int, fitness float64, err error, stop bool, behavior []float64) *Novelty {
+	return &Novelty{Classic: New(id, fitness, err, stop), behavior: behavior}
 }
 
-func (s *Dynamic) Speciate(curr []neat.Species, genomes []neat.Genome) (next []neat.Species, err error) {
+func (r Novelty) Behavior() []float64 { return r.behavior }
 
-	// Speciate using the internal speciater
-	next, err = s.Classic.Speciate(curr, genomes)
-	if err != nil {
-		return
-	}
+func (r Novelty) Novelty() float64 { return r.novelty }
 
-	// Adjust the compatibily theshold as necessary
-	ct := s.CompatibilityThreshold()
-	if len(next) < s.TargetNumberOfSpecies() {
-		ct -= s.CompatibilityModifier()
-		if ct < CompatibilityThresholdFloor {
-			ct = CompatibilityThresholdFloor
-		}
-	} else if len(next) > s.TargetNumberOfSpecies() {
-		ct += s.CompatibilityModifier()
-	}
-	s.SetCompatibilityThreshold(ct)
-	return
-}
+func (r *Novelty) SetNovelty(v float64) { r.novelty = v }
+
+func (r Novelty) Improvement() float64 { return r.novelty }

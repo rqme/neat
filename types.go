@@ -36,37 +36,11 @@ type Archive struct {
 	State  string
 }
 
-// Provides next integer in a sequence
-type IDSequence interface {
-
-	// Returns the next int in the sequence
-	Next() int
-}
-
-// Tracks innovations
-type Marker interface {
-
-	// Marks the node with its innovation number
-	MarkNode(*Node)
-
-	// Marks the connection with its innovation number
-	MarkConn(*Connection)
-
-	// Resets the innovation history
-	Reset()
-}
-
 // A decoded solution
 type Phenome interface {
-
-	// The identify of the underlying genome
-	ID() int
-
-	// Trait values which could be used during evaluation
-	Traits() []float64
-
-	// The decoded genome
-	Network
+	ID() int           // The identify of the underlying genome
+	Traits() []float64 // Trait values which could be used during evaluation
+	Network            // The decoded genome
 }
 
 type Phenomes []Phenome
@@ -75,30 +49,24 @@ type Phenomes []Phenome
 type Population struct {
 	Generation int
 	Species    []Species
-	Genomes    []Genome
+	Genomes    Genomes
 }
 
 // The result of an evaluation
 type Result interface {
-
-	// Returns the ID of the phenome
-	ID() int
-
-	// Returns the fitness of the phenome for the problem
-	Fitness() float64
-
-	// Returns the error, if any, occuring while evaluating the phenome.
-	Err() error
-
-	// Returns true if the stop condition was met
-	Stop() bool
+	ID() int          // Returns the ID of the phenome
+	Fitness() float64 // Returns the fitness of the phenome for the problem
+	Err() error       // Returns the error, if any, occuring while evaluating the phenome.
+	Stop() bool       // Returns true if the stop condition was met
 }
 
+type Results []Result
+
 type Species struct {
-	Age        int // Age in terms of generations
-	Stagnation int // Number of generations since an improvement in fitness
-	Fitness    float64
-	Example    Genome
+	Age         int // Age in terms of generations
+	Stagnation  int // Number of generations since an improvement
+	Improvement float64
+	Example     Genome
 }
 
 type Trait struct {
@@ -121,15 +89,15 @@ func (t Traits) IndexOf(name string) int {
 type FitnessType byte
 
 const (
-	AbsoluteFitness FitnessType = iota
-	RelativeFitness
+	Absolute FitnessType = iota
+	Relative
 )
 
 func (f FitnessType) String() string {
 	switch f {
-	case AbsoluteFitness:
+	case Absolute:
 		return "Absolute Fitness"
-	case RelativeFitness:
+	case Relative:
 		return "Relative Fitness"
 	default:
 		return fmt.Sprintf("Unknown FitnessType: %d", f)

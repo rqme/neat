@@ -41,6 +41,12 @@ type Connection struct {
 	Enabled        bool    // Is this connection enabled?
 }
 
+func (c Connection) Key() (k InnoKey) {
+	k[0] = float64(c.Source)
+	k[1] = float64(c.Target)
+	return
+}
+
 func (c Connection) String() string {
 	b := bytes.NewBufferString(fmt.Sprintf("Conn %d Source %d Target %d Weight %f ", c.Innovation, c.Source, c.Target, c.Weight))
 	if c.Enabled {

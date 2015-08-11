@@ -41,6 +41,12 @@ type Node struct {
 	ActivationType
 }
 
+func (n Node) Key() (k InnoKey) {
+	k[0] = n.X
+	k[1] = n.Y
+	return
+}
+
 func (n Node) String() string {
 	return fmt.Sprintf("Node %d at [%f, %f] Neuron %v Activation %v", n.Innovation, n.X, n.Y, n.NeuronType, n.ActivationType)
 }

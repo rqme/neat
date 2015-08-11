@@ -29,14 +29,11 @@ package searcher
 import "github.com/rqme/neat"
 
 type Serial struct {
-	neat.Evaluator
+	ctx neat.Context
 }
 
-// Configures the helper from a JSON string
-func (s *Serial) Configure(cfg string) error {
-	if x, ok := s.Evaluator.(neat.Configurable); ok {
-		return x.Configure(cfg)
-	}
+func (s *Serial) SetContext(x neat.Context) error {
+	s.ctx = x
 	return nil
 }
 
@@ -44,28 +41,7 @@ func (s *Serial) Configure(cfg string) error {
 func (s Serial) Search(phenomes []neat.Phenome) ([]neat.Result, error) {
 	results := make([]neat.Result, len(phenomes))
 	for i, phenome := range phenomes {
-		results[i] = s.Evaluate(phenome)
+		results[i] = s.ctx.Evaluator().Evaluate(phenome)
 	}
 	return results, nil
-}
-
-func (s *Serial) Setup() error {
-	if h, ok := s.Evaluator.(neat.Setupable); ok {
-		return h.Setup()
-	}
-	return nil
-}
-
-func (s *Serial) Takedown() error {
-	if h, ok := s.Evaluator.(neat.Takedownable); ok {
-		return h.Takedown()
-	}
-	return nil
-}
-
-func (s *Serial) SetPhenomes(p neat.Phenomes) error {
-	if h, ok := s.Evaluator.(neat.Phenomable); ok {
-		return h.SetPhenomes(p)
-	}
-	return nil
 }

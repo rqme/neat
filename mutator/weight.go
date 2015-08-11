@@ -32,32 +32,25 @@ import (
 	"math/rand"
 )
 
-type Weight struct {
-
-	// The mutation range of the weight. If x, range is [-x,x]
-	WeightRange float64 "neat:config"
-
-	// Probability that the weight will be mutated
-	MutateWeightProbability float64 "neat:config"
-
-	// Probability that the weight will be replaced
-	ReplaceWeightProbability float64 "neat:config"
+type WeightSettings interface {
+	WeightRange() float64              // The mutation range of the weight. If x, range is [-x,x]
+	MutateWeightProbability() float64  // Probability that the weight will be mutated
+	ReplaceWeightProbability() float64 // Probability that the weight will be replaced
 }
 
-// Configures the helper from a JSON string
-func (m *Weight) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
+type Weight struct {
+	WeightSettings
 }
 
 // Mutates a genome's weights
 func (m Weight) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
 	for k, conn := range g.Conns {
-		if rng.Float64() < m.MutateWeightProbability {
-			if rng.Float64() < m.ReplaceWeightProbability {
-				conn.Weight = m.replaceWeight(rng)
+		if rng.Float64() < m.MutateWeightProbability() {
+			if rng.Float64() < m.ReplaceWeightProbability() {
+				m.replaceWeight(rng, &conn)
 			} else {
-				conn.Weight = m.mutateWeight(rng, conn.Weight)
+				m.mutateWeight(rng, &conn)
 			}
 			g.Conns[k] = conn
 		}
@@ -66,8 +59,8 @@ func (m Weight) Mutate(g *neat.Genome) error {
 }
 
 // Returns a modified weight
-func (m Weight) mutateWeight(rng *rand.Rand, w float64) float64 {
-	w = w + rng.NormFloat64()
+func (m Weight) mutateWeight(rng *rand.Rand, c *neat.Connection) {
+	c.Weight += rng.NormFloat64()
 	/*
 		if w < -m.WeightRange*2 {
 			w = -m.WeightRange * 2
@@ -75,10 +68,9 @@ func (m Weight) mutateWeight(rng *rand.Rand, w float64) float64 {
 			w = m.WeightRange * 2
 		}
 	*/
-	return w
 }
 
 // Returns a new weight
-func (m Weight) replaceWeight(rng *rand.Rand) float64 {
-	return (rng.Float64()*2.0 - 1.0) * m.WeightRange
+func (m Weight) replaceWeight(rng *rand.Rand, c *neat.Connection) {
+	c.Weight = (rng.Float64()*2.0 - 1.0) * m.WeightRange()
 }

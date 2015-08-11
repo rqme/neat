@@ -32,19 +32,18 @@ import (
 	"math"
 )
 
+type ClassicSettings interface {
+	DisjointCoefficient() float64
+	ExcessCoefficient() float64
+	WeightCoefficient() float64
+}
+
 // Helper to compare two genomes similarity
 type Classic struct {
-	DisjointCoefficient float64 "neat:config"
-	ExcessCoefficient   float64 "neat:config"
-	WeightCoefficient   float64 "neat:config"
+	ClassicSettings
 }
 
-// Configures the helper
-func (d *Classic) Configure(cfg string) error {
-	return neat.Configure(cfg, d)
-}
-
-// Returns the compatibility (similarity) between two genomes
+// Compares two genomes and returns their compatibility distance
 //
 // The number of excess and disjoint genes between a pair of genomes is a natural measure of their
 // compatibility distance. The more disjoint two genomes are, the less evolutionary history they
@@ -103,9 +102,9 @@ func (c Classic) Compare(g1, g2 neat.Genome) (float64, error) {
 
 	// Return the compatibility distance
 	n = 1 // NOTE: The variable N mentioned in the paper does not seem to be used in any implemenation
-	δ := c.ExcessCoefficient*e/n + c.DisjointCoefficient*d/n
+	δ := c.ExcessCoefficient()*e/n + c.DisjointCoefficient()*d/n
 	if x > 0 {
-		δ += c.WeightCoefficient * w / x
+		δ += c.WeightCoefficient() * w / x
 	}
 	return δ, nil
 }

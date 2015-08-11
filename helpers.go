@@ -29,7 +29,7 @@ package neat
 // Helper which provides access to archive storage
 type Archiver interface {
 	// Archives the current configuration and state to a more permanent medium
-	Archive(Configurable) error
+	Archive(Context) error
 }
 
 // Helper to compare two genomes similarity
@@ -70,7 +70,7 @@ type Mutator interface {
 // Helper to restore an experiment
 type Restorer interface {
 	// Restores the configuration and/or the state of a previous experiment
-	Restore(Configurable) error
+	Restore(Context) error
 }
 
 // Helper to search the problem's solution space

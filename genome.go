@@ -34,13 +34,15 @@ import (
 
 // An encoded solution
 type Genome struct {
-	ID         int         // Identifier for this genome
-	SpeciesIdx int         // Index of species in the population
-	Nodes      Nodes       // Neuron definitions
-	Conns      Connections // Synapse definitions
-	Traits     []float64   // Trait values
-	Fitness    float64     // Fitness of this genome
-	Birth      int         // Generation during which this genome was born
+	ID              int         // Identifier for this genome
+	SpeciesIdx      int         // Index of species in the population
+	Nodes           Nodes       // Neuron definitions
+	Conns           Connections // Synapse definitions
+	Traits          []float64   // Trait values
+	Fitness         float64     // Fitness of genome as it relates to the problem itself
+	Improvement     float64     // Fitness of genome as it relates to the improvement of the population
+	OriginalFitness float64     // Original fitness of the genome. This may be different from the Fitness field if the Result provides both
+	Birth           int         // Generation during which this genome was born
 }
 
 func (g Genome) Complexity() int { return len(g.Nodes) + len(g.Conns) }
@@ -112,11 +114,16 @@ func (g Genome) GenesByPosition() ([]Node, []Connection) {
 
 type Genomes []Genome
 
+func (gs Genomes) Len() int           { return len(gs) }
+func (gs Genomes) Less(i, j int) bool { return gs[i].Fitness < gs[j].Fitness }
+func (gs Genomes) Swap(i, j int)      { gs[i], gs[j] = gs[j], gs[i] }
+
 // Returns a copy of the genome
 func CopyGenome(g1 Genome) (g2 Genome) {
 	g2.ID = g1.ID
 	g2.SpeciesIdx = g1.SpeciesIdx
 	g2.Fitness = g1.Fitness
+	g2.Improvement = g1.Improvement
 	g2.Conns = make(map[int]Connection, len(g1.Conns))
 	for k, v := range g1.Conns {
 		g2.Conns[k] = v

@@ -27,122 +27,104 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package archiver
 
 import (
-	. "github.com/rqme/errors"
-	"github.com/rqme/neat"
-
-	"bufio"
-	"bytes"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path"
+	"strconv"
+
+	"github.com/rqme/neat"
 )
 
+type FileSettings interface {
+	ArchiveName() string
+	ArchivePath() string
+}
+
 type File struct {
-	ArchivePath string
-	ArchiveName string
+	FileSettings
+	useTrials bool
+	trialNum  int
 }
 
-// Archives the configuration extracted from an item to a file
-func (a File) Archive(item neat.Configurable) error {
-
-	errs := new(Errors)
-	for _, suffix := range []string{"config", "state"} {
-
-		// Extract the configuration for this tag
-		c, err := neat.Extract(item, fmt.Sprintf("neat.%s", suffix))
-		if err != nil {
-			errs.Add(fmt.Errorf("archiver.File.Archive - Error extracting for %s : %v", suffix, err))
-			continue
-		}
-
-		// Ensure the directory
-		if _, err := os.Stat(a.ArchivePath); os.IsNotExist(err) {
-			if err = os.Mkdir(a.ArchivePath, os.ModePerm); err != nil {
-				errs.Add(fmt.Errorf("Could not create archive path %s: %v", a.ArchivePath, err))
-			}
-		}
-
-		// Identify the path
-		var p string
-		if a.ArchiveName == "" {
-			p = path.Join(a.ArchivePath, fmt.Sprintf("%s.json", suffix))
-		} else {
-			p = path.Join(a.ArchivePath, fmt.Sprintf("%s-%s.json", a.ArchiveName, suffix))
-		}
-
-		// Create the file
-		f, err := os.Create(p)
-		if err != nil {
-			errs.Add(fmt.Errorf("archiver.File.Archive - Error creating file for %s : %v", suffix, err))
-			continue
-		}
-
-		// Write the config to the file
-		_, err = f.WriteString(c)
-		if err != nil {
-			errs.Add(fmt.Errorf("archiver.File.Archive - Error writing to file for %s : %v", suffix, err))
-			continue
-		}
-		f.Close()
-
-	}
-
-	return errs.Err()
+func (a *File) SetTrial(t int) error {
+	a.useTrials = true
+	a.trialNum = t
+	return nil
 }
 
-// Restores an item from the configuration stored in a file
-func (a File) Restore(item neat.Configurable) error {
+func (a *File) makePath(s string) string {
+	p := a.ArchivePath()
+	if a.useTrials {
+		p = path.Join(p, strconv.Itoa(a.trialNum))
+	}
+	return path.Join(p, fmt.Sprintf("%s-%s.json", a.ArchiveName(), s))
+}
 
-	errs := new(Errors)
-	for _, suffix := range []string{"config", "state"} {
+func (a *File) Archive(ctx neat.Context) error {
 
-		// Identify the path
-		var p string
-		if a.ArchiveName == "" {
-			p = path.Join(a.ArchivePath, fmt.Sprintf("%s.json", suffix))
-		} else {
-			p = path.Join(a.ArchivePath, fmt.Sprintf("%s-%s.json", a.ArchiveName, suffix))
-		}
+	// Save the settings
+	name := a.makePath("config")
+	f, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	e := json.NewEncoder(f)
+	if err = e.Encode(ctx); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
 
-		// Open the file
-		f, err := os.Open(p)
+	// Save the state values
+	for k, v := range ctx.State() {
+		name := a.makePath(k)
+		f, err = os.Create(name)
 		if err != nil {
-			if os.IsNotExist(err) {
-				continue // Nothing to restore
-			}
-			errs.Add(fmt.Errorf("archiver.File.Restore - Error opening file for %s : %v", suffix, err))
-			continue
+			return err
 		}
-
-		// Read the config to the file
-		b := bytes.NewBufferString("")
-		r := bufio.NewReader(f)
-		for {
-			s, err := r.ReadBytes('\n')
-			if err != nil && err != io.EOF {
-				break
-			} else {
-				b.Write(s)
-				b.WriteString("\n")
-				if err != nil && err == io.EOF {
-					break
-				}
-			}
-		}
-		if err != nil && err != io.EOF {
-			errs.Add(fmt.Errorf("archiver.File.Restore - Error reading from file for %s : %v", suffix, err))
-			continue
+		e = json.NewEncoder(f)
+		if err = e.Encode(v); err != nil {
+			f.Close()
+			return err
 		}
 		f.Close()
+	}
+	return nil
+}
 
-		// Configure the item
-		err = item.Configure(b.String())
-		if err != nil {
-			errs.Add(fmt.Errorf("archiver.File.Restore - Error Configuring for %s : %v", suffix, err))
+func (a *File) Restore(ctx neat.Context) error {
+
+	// Restore the settings
+	name := a.makePath("config")
+	f, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+	d := json.NewDecoder(f)
+	if err = d.Decode(&ctx); err != nil {
+		f.Close()
+		return err
+	}
+	f.Close()
+
+	// Restore the state values
+	for k, v := range ctx.State() {
+		name := a.makePath(k)
+		if _, err := os.Stat(name); os.IsNotExist(err) {
 			continue
 		}
 
+		f, err = os.Open(name)
+		if err != nil {
+			return err
+		}
+		d = json.NewDecoder(f)
+		if err = d.Decode(&v); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
 	}
-	return errs.Err()
+	return nil
 }

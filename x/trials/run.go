@@ -29,115 +29,159 @@ package trials
 import (
 	"flag"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/montanaflynn/stats"
 	"github.com/rqme/neat"
 )
 
 var (
-	Trials    = flag.Int("trials", 10, "Number of trials to run. Default is 10.")
-	CheckStop = flag.Bool("check-stop", false, "Consider trial a failure if stop condition not met")
-)
-
-const (
-	Seconds int = iota
-	Iterations
-	Nodes
-	Connections
-	Fitness
-)
-
-const (
-	Min int = iota
-	Avg
-	Max
-	Sum
-	Cnt
+	Trials     = flag.Int("trials", 10, "Number of trials to run. Default is 10.")
+	CheckStop  = flag.Bool("check-stop", false, "Consider trial a failure if stop condition not met")
+	ShowWork   = flag.Bool("show-work", false, "Evaluates the best genome separately, showing the detail ")
+	SkipEvolve = flag.Bool("skip-evolve", false, "Skips evolution phase if population restored. Use with -best to display archived population.")
 )
 
 func Run(f func(int) (*neat.Experiment, error)) error {
 
 	// Create the collection variables
 	n := *Trials
+	exps := make([]*neat.Experiment, n)
+	best := make([]neat.Genome, n)
+	noso := make([]bool, n)
 	fail := make([]bool, n)
+	skip := make([]bool, n)
 	errs := make([]error, n)
-	data := make([][]float64, n)
-	for i := 0; i < len(data); i++ {
-		data[i] = make([]float64, 5)
-	}
+
+	secs := make([]float64, 0, n)
+	fits := make([]float64, 0, n)
+	iters := make([]float64, 0, n)
+	nodes := make([]float64, 0, n)
+	conns := make([]float64, 0, n)
+
+	var se, fi, it, no, co float64
 
 	// Begin the display
-	fmt.Printf("Run   Iters.   Seconds    Nodes     Conns    Fitness\n")
-	fmt.Printf("--- --------- --------- --------- --------- ---------\n")
+	fmt.Printf("Run   Iters.   Seconds    Nodes     Conns    Fitness   Fail   Comment \n")
+	fmt.Printf("--- --------- --------- --------- --------- --------- ------ ---------\n")
 
 	// Iterate the trials
+	var showTime, showBest bool
+	var err error
 	for i := 0; i < n; i++ {
-		t0 := time.Now()
-		if e, err := f(i); err != nil {
-			return err
+		var t0, t1 time.Time
+		t0 = time.Now()
+		if exps[i], err = f(i); err != nil {
+			errs[i] = err
+			fail[i] = true
+			showBest = false
+			showTime = false
 		} else {
-			if err = neat.Run(e); err != nil {
-				errs[i] = fmt.Errorf("Error during trial %d: %v", i, err)
+			if *SkipEvolve && len(exps[i].Population().Genomes) > 0 {
+				skip[i] = true
+			} else if err = neat.Run(exps[i]); err != nil {
+				t1 = time.Now()
+				errs[i] = err
 				fail[i] = true
 			} else {
-				if *CheckStop && !e.Stopped {
-					fail[i] = true
-				} else {
-					data[i][Seconds] = time.Now().Sub(t0).Seconds()
-					b := findBest(e.Population)
-					data[i][Nodes] = float64(len(b.Nodes))
-					data[i][Connections] = float64(len(b.Conns))
-					data[i][Fitness] = b.Fitness
-					data[i][Iterations] = float64(e.Iteration)
-					//fail[i] = e.Iteration == e.Iterations
+				t1 = time.Now()
+				if *CheckStop && !exps[i].Stopped() {
+					errs[i] = fmt.Errorf("No solution found")
+					noso[i] = true
 				}
 			}
-		}
 
-		// Update the display
-		if fail[i] {
-			if errs[i] != nil {
-				fmt.Printf("%s failed: %s\n", padInt(i, 3), errs[i])
+			// Update the time stats
+			if exps[i].Iteration() > 0 {
+				showTime = true
+				it = float64(exps[i].Iteration())
+				se = t1.Sub(t0).Seconds()
+				if !fail[i] && !skip[i] {
+					iters = append(iters, it)
+					secs = append(secs, se)
+				}
 			} else {
-				fmt.Printf("%s failed: no solution found\n", padInt(i, 3)) // Print failure message : iterations or error
+				showTime = false
 			}
-		} else {
-			fmt.Printf("%s %s %s %s %s %s\n", padInt(i, 3), padFloat(data[i][Iterations], 0, 9), padFloat(data[i][Seconds], 3, 9), padFloat(data[i][Nodes], 0, 9), padFloat(data[i][Connections], 0, 9), padFloat(data[i][Fitness], 3, 9))
-		}
-	}
 
-	// Calculate Stats
-	stats := make([][]float64, 5)
-	for i := 0; i < len(stats); i++ {
-		stats[i] = make([]float64, 5)
-		stats[i][Min] = math.Inf(1)
-		stats[i][Max] = math.Inf(-1)
-		for j := 0; j < n; j++ {
-			if !fail[j] {
-				if data[j][i] < stats[i][Min] {
-					stats[i][Min] = data[j][i]
+			// Find the best and update the results
+			if !fail[i] && len(exps[i].Population().Genomes) > 0 {
+				showBest = true
+				best[i] = findBest(exps[i].Population())
+				no = float64(len(best[i].Nodes))
+				co = float64(len(best[i].Conns))
+				fi = best[i].Fitness
+
+				if !noso[i] {
+					nodes = append(nodes, no)
+					conns = append(conns, co)
+					fits = append(fits, fi)
 				}
-				if data[j][i] > stats[i][Max] {
-					stats[i][Max] = data[j][i]
-				}
-				stats[i][Sum] += data[j][i]
-				stats[i][Cnt] += 1.0
+			} else {
+				showBest = false
 			}
 		}
-		if stats[i][Cnt] > 0 {
-			stats[i][Avg] = stats[i][Sum] / stats[i][Cnt]
-		}
+		showTrial(padInt(i, 3), showTime, showBest, it, se, no, co, fi, fail[i] || noso[i], skip[i], errs[i])
 	}
 
-	// Report the findings
-	if stats[0][Cnt] > 1 {
-		fmt.Println("")
-		fmt.Printf("MIN %s %s %s %s %s\n", padFloat(stats[Iterations][Min], 0, 9), padFloat(stats[Seconds][Min], 3, 9), padFloat(stats[Nodes][Min], 0, 9), padFloat(stats[Connections][Min], 0, 9), padFloat(stats[Fitness][Min], 3, 9))
-		fmt.Printf("AVG %s %s %s %s %s\n", padFloat(stats[Iterations][Avg], 0, 9), padFloat(stats[Seconds][Avg], 3, 9), padFloat(stats[Nodes][Avg], 0, 9), padFloat(stats[Connections][Avg], 0, 9), padFloat(stats[Fitness][Avg], 3, 9))
-		fmt.Printf("MAX %s %s %s %s %s\n", padFloat(stats[Iterations][Max], 0, 9), padFloat(stats[Seconds][Max], 3, 9), padFloat(stats[Nodes][Max], 0, 9), padFloat(stats[Connections][Max], 0, 9), padFloat(stats[Fitness][Max], 3, 9))
+	// Display the summary
+	funcs := []func([]float64) (float64, error){stats.Mean, stats.Median, stats.StdDevP, stats.Min, stats.Max}
+	labs := []string{"AVG", "MED", "SDV", "MIN", "MAX"} // 3 characters
+	var itm, sem, nom, com, fim [5]float64
+	if len(iters) > 0 {
+		showTime = true
+		for i := 0; i < len(funcs); i++ {
+			itm[i], _ = funcs[i](iters)
+			sem[i], _ = funcs[i](secs)
+		}
+	} else {
+		showTime = false
+	}
+	if len(nodes) > 0 {
+		showBest = true
+		for i := 0; i < len(funcs); i++ {
+			nom[i], _ = funcs[i](nodes)
+			com[i], _ = funcs[i](conns)
+			fim[i], _ = funcs[i](fits)
+		}
+	} else {
+		showBest = false
+	}
+
+	fmt.Printf("\nSummary for trials excluding failures (and time for skipped)\n")
+	fmt.Printf("      Iters.   Seconds    Nodes     Conns    Fitness\n")
+	fmt.Printf("--- --------- --------- --------- --------- ---------\n")
+	for i := 0; i < len(itm); i++ {
+		showTrial(labs[i], showTime, showBest, itm[i], sem[i], nom[i], com[i], fim[i], false, false, nil)
+	}
+
+	// Show the evaluations of the best
+	if *ShowWork {
+		for i := 0; i < len(exps); i++ {
+			if dh, ok := exps[i].Context().Evaluator().(neat.Demonstrable); ok {
+				dh.ShowWork(true)
+				if rst, ok := exps[i].Context().Archiver().(neat.Restorer); ok {
+					ctx := exps[i].Context()
+					if err := rst.Restore(ctx); err != nil {
+						fmt.Printf("Error restoring the context for trial %d: %v\n", i, err)
+					}
+				}
+				if p, err := exps[i].Context().Decoder().Decode(best[i]); err != nil {
+					fmt.Printf("Error decoding phenome in show work: %v\n", err)
+				} else {
+					evl := exps[i].Context().Evaluator()
+					if th, ok := evl.(neat.Trialable); ok {
+						th.SetTrial(i)
+					}
+					r := evl.Evaluate(p)
+					if r.Err() != nil {
+						fmt.Printf("Error demonstrating phenome: %v\n", r.Err())
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -166,4 +210,36 @@ func padFloat(f float64, d int, p int) string {
 		s = strings.Repeat(" ", p-len(s)) + s
 	}
 	return s
+}
+
+func showTrial(key string, showTime, showBest bool, it, se, no, co, fi float64, fail, skip bool, err error) {
+	var ses, its, nos, cos, fis, fas, cms string
+	if showTime {
+		its = padFloat(it, 0, 9)
+		ses = padFloat(se, 3, 9)
+	} else {
+		its = strings.Repeat(" ", 9)
+		ses = strings.Repeat(" ", 9)
+	}
+	if showBest {
+		nos = padFloat(no, 0, 9)
+		cos = padFloat(co, 0, 9)
+		fis = padFloat(fi, 3, 9)
+	} else {
+		nos = strings.Repeat(" ", 9)
+		cos = strings.Repeat(" ", 9)
+		fis = strings.Repeat(" ", 9)
+	}
+	if fail {
+		fas = " Yes  "
+		cms = err.Error()
+	} else {
+		fas = strings.Repeat(" ", 6)
+		if skip {
+			cms = "Skipped"
+		} else {
+			cms = ""
+		}
+	}
+	fmt.Printf("%s %s %s %s %s %s %s %s\n", key, its, ses, nos, cos, fis, fas, cms)
 }

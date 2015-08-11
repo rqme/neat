@@ -38,6 +38,8 @@ ATTRIBUTIONS and other notes:
 package visualizer
 
 import (
+	"strconv"
+
 	svg "github.com/ajstarks/svgo"
 	"github.com/montanaflynn/stats"
 	. "github.com/rqme/errors"
@@ -52,46 +54,81 @@ import (
 	"strings"
 )
 
-// Visualizes the population by creating web pages
-type Web struct {
-
-	// Descriptive name of the experiment
-	ExperimentName string "neat:config"
-
-	// Path to output images
-	WebPath string "neat:config"
-
-	// Decoder to use for creating network from best genome
-	neat.Decoder
-
-	// History
-	WebFitness    [][3]float64  "neat:state"
-	WebComplexity [][4]float64  "neat:state"
-	WebSpecies    [][]int       "neat:state"
-	WebBest       []neat.Genome "neat:state"
+type WebSettings interface {
+	ExperimentName() string // Descriptive name of the experiment
+	WebPath() string        // Path to output images
 }
 
-// Sets the configuration of the helper
-func (d *Web) Configure(cfg string) error {
-	return neat.Configure(cfg, d)
+// Visualizes the population by creating web pages
+type Web struct {
+	WebSettings
+	ctx neat.Context
+
+	// History
+	fitness    [][3]float64
+	complexity [][4]float64
+	species    [][]int
+	best       []neat.Genome
+
+	useTrials bool
+	trialNum  int
+}
+
+func (v *Web) SetTrial(t int) error {
+	v.useTrials = true
+	v.trialNum = t
+	return nil
+}
+
+func (v *Web) makePath(s string) string {
+	p := v.WebPath()
+	if v.useTrials {
+		p = path.Join(p, strconv.Itoa(v.trialNum))
+	}
+	return path.Join(p, fmt.Sprintf("%s.svg", s))
+}
+
+func (v *Web) SetContext(x neat.Context) error {
+	v.ctx = x
+	x.State()["web-fitness"] = &v.fitness
+	x.State()["web-complexity"] = &v.complexity
+	x.State()["web-species"] = &v.species
+	x.State()["web-best"] = &v.best
+	return nil
 }
 
 // Resets the history
 func (d *Web) Reset() {
-	d.WebFitness = make([][3]float64, 0, 100)
-	d.WebComplexity = make([][4]float64, 0, 100)
-	d.WebSpecies = make([][]int, 0, 100)
-	d.WebBest = make([]neat.Genome, 0, 100)
+	d.fitness = make([][3]float64, 0, 100)
+	d.complexity = make([][4]float64, 0, 100)
+	d.species = make([][]int, 0, 100)
+	d.best = make([]neat.Genome, 0, 100)
+}
+
+func (v *Web) ensurePath() error {
+	p := v.WebPath()
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		if err = os.Mkdir(p, os.ModePerm); err != nil {
+			return fmt.Errorf("Could not create web path %s: %v", p, err)
+		}
+	}
+	if v.useTrials {
+		p = path.Join(p, strconv.Itoa(v.trialNum))
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			if err = os.Mkdir(p, os.ModePerm); err != nil {
+				return fmt.Errorf("Could not create web path %s: %v", p, err)
+			}
+		}
+	}
+	return nil
 }
 
 // Creates visuals of the population which can be displayed in a browser
 func (v *Web) Visualize(pop neat.Population) error {
 
 	// Ensure the directory
-	if _, err := os.Stat(v.WebPath); os.IsNotExist(err) {
-		if err = os.Mkdir(v.WebPath, os.ModePerm); err != nil {
-			return fmt.Errorf("Could not create web path %s: %v", v.WebPath, err)
-		}
+	if err := v.ensurePath(); err != nil {
+		return err
 	}
 
 	// Add the population to the history
@@ -128,7 +165,7 @@ func updateFitness(v *Web, pop neat.Population) {
 	min, _ := stats.Min(x)
 	max, _ := stats.Max(x)
 	mean, _ := stats.Mean(x)
-	v.WebFitness = append(v.WebFitness, [3]float64{
+	v.fitness = append(v.fitness, [3]float64{
 		min,
 		mean,
 		max,
@@ -156,7 +193,7 @@ func updateComplexity(v *Web, pop neat.Population) {
 	max, _ = stats.Max(x)
 	mean, _ := stats.Mean(x)
 
-	v.WebComplexity = append(v.WebComplexity, [4]float64{
+	v.complexity = append(v.complexity, [4]float64{
 		min,
 		mean,
 		max,
@@ -169,7 +206,7 @@ func updateSpecies(v *Web, pop neat.Population) {
 	for _, g := range pop.Genomes {
 		cnt[g.SpeciesIdx] += 1
 	}
-	v.WebSpecies = append(v.WebSpecies, cnt)
+	v.species = append(v.species, cnt)
 }
 
 func updateBest(v *Web, pop neat.Population) {
@@ -179,12 +216,12 @@ func updateBest(v *Web, pop neat.Population) {
 			best = g
 		}
 	}
-	v.WebBest = append(v.WebBest, best)
+	v.best = append(v.best, best)
 }
 
 func visualizeFitness(v *Web) error {
 	// Create the file
-	f, err := os.Create(path.Join(v.WebPath, "fitness.html"))
+	f, err := os.Create(v.makePath("fitness"))
 	if err != nil {
 		return err
 	}
@@ -193,6 +230,7 @@ func visualizeFitness(v *Web) error {
 	// Create the image
 	img := svg.New(f)
 	img.Start(575, 375)
+	defer img.End()
 
 	// Draw and label horizontal axis
 	img.Path("M 40 340 L 540 340", `id="generation" stroke-width="1" stroke="black" fill="none"`)
@@ -204,7 +242,7 @@ func visualizeFitness(v *Web) error {
 	img.Path("M 440 345 L 440 335", `stroke-width="1" stroke="black" fill="none"`)
 	img.Path("M 540 345 L 540 335", `stroke-width="1" stroke="black" fill="none"`)
 
-	generations := len(v.WebFitness)
+	generations := len(v.fitness)
 	img.Text(132, 355, fmt.Sprintf("%d", generations/5*1), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(232, 355, fmt.Sprintf("%d", generations/5*2), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(332, 355, fmt.Sprintf("%d", generations/5*3), `fill="black" font-size="11" font-family="Verdana"`)
@@ -217,7 +255,7 @@ func visualizeFitness(v *Web) error {
 
 	var fitness_max, fitness_min float64
 	fitness_min = 9e10
-	for _, generation := range v.WebFitness {
+	for _, generation := range v.fitness {
 		if generation[0] < fitness_min {
 			fitness_min = generation[0]
 		}
@@ -244,7 +282,7 @@ func visualizeFitness(v *Web) error {
 
 	img.Textpath(fmt.Sprintf("%2f", (fitness_min)), "#generation", `fill="green" fill-opacity="1.0" font-size="9" font-family="Verdana" dy="8" startOffset="0%"`)
 
-	for i, generation := range v.WebFitness {
+	for i, generation := range v.fitness {
 
 		fitnessMax := generation[2]
 		fitnessMin := generation[0]
@@ -263,7 +301,7 @@ func visualizeFitness(v *Web) error {
 
 func visualizeComplexity(v *Web) error {
 	// Create the file
-	f, err := os.Create(path.Join(v.WebPath, "complexity.html"))
+	f, err := os.Create(v.makePath("complexity"))
 	if err != nil {
 		return err
 	}
@@ -272,6 +310,7 @@ func visualizeComplexity(v *Web) error {
 	// Create the image
 	img := svg.New(f)
 	img.Start(575, 375)
+	defer img.End()
 
 	// Draw and label horizontal axis
 	img.Path("M 40 340 L 540 340", `id="generation" stroke-width="1" stroke="black" fill="none"`)
@@ -283,7 +322,7 @@ func visualizeComplexity(v *Web) error {
 	img.Path("M 440 345 L 440 335", `stroke-width="1" stroke="black" fill="none"`)
 	img.Path("M 540 345 L 540 335", `stroke-width="1" stroke="black" fill="none"`)
 
-	generations := len(v.WebComplexity)
+	generations := len(v.complexity)
 	img.Text(132, 355, fmt.Sprintf("%d", generations/5*1), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(232, 355, fmt.Sprintf("%d", generations/5*2), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(332, 355, fmt.Sprintf("%d", generations/5*3), `fill="black" font-size="11" font-family="Verdana"`)
@@ -296,7 +335,7 @@ func visualizeComplexity(v *Web) error {
 
 	var complexity_max, complexity_min float64
 	complexity_min = 9e10
-	for _, generation := range v.WebComplexity {
+	for _, generation := range v.complexity {
 		if generation[0] < complexity_min {
 			complexity_min = generation[0]
 		}
@@ -323,7 +362,7 @@ func visualizeComplexity(v *Web) error {
 
 	img.Textpath(fmt.Sprintf("%v", int(complexity_min)), "#generation", `fill="green" fill-opacity="1.0" font-size="9" font-family="Verdana" dy="8" startOffset="0%"`)
 
-	for i, generation := range v.WebComplexity {
+	for i, generation := range v.complexity {
 		complexityMax := generation[2]
 		complexityMin := generation[0]
 		complexityAvg := generation[1]
@@ -345,7 +384,7 @@ func visualizeComplexity(v *Web) error {
 func visualizeSpecies(v *Web) error {
 
 	// Create the file
-	f, err := os.Create(path.Join(v.WebPath, "species.html"))
+	f, err := os.Create(v.makePath("species"))
 	if err != nil {
 		return err
 	}
@@ -353,7 +392,7 @@ func visualizeSpecies(v *Web) error {
 
 	// Identify the max population size
 	popSize := 0
-	for _, h := range v.WebSpecies {
+	for _, h := range v.species {
 		cnt := 0
 		for _, s := range h {
 			cnt += s
@@ -369,8 +408,10 @@ func visualizeSpecies(v *Web) error {
 	// Create the image
 	img := svg.New(f)
 	img.Start(popSize*2+400, 460)
+	defer img.End()
+
 	//img.Text(10, 10, fmt.Sprintf("ID=%d Time/Date=%v", ?, ?), `style="font-size:12"`)
-	img.Text(10, 25, fmt.Sprintf("PopSize=%d NumGenerations=%d", popSize, len(v.WebSpecies)), `style="font-size:10"`)
+	img.Text(10, 25, fmt.Sprintf("PopSize=%d NumGenerations=%d", popSize, len(v.species)), `style="font-size:10"`)
 	img.Path("M 40 340 L 540 340", `id="generation" stroke-width="1" stroke="black" fill="none"`)
 	img.Textpath("Generation", "#generation", `fill="blue" font-size="12" font-family="Verdana" dy="30" startOffset="25%"`)
 	img.Path("M 140 345 L 140 340", `stroke-width="1" stroke="black" fill="none"`)
@@ -378,11 +419,11 @@ func visualizeSpecies(v *Web) error {
 	img.Path("M 340 345 L 340 340", `stroke-width="1" stroke="black" fill="none"`)
 	img.Path("M 440 345 L 440 340", `stroke-width="1" stroke="black" fill="none"`)
 	img.Path("M 540 345 L 540 340", `stroke-width="1" stroke="black" fill="none"`)
-	img.Text(132, 355, fmt.Sprintf("%d", len(v.WebSpecies)/5*1), `fill="black" font-size="11" font-family="Verdana"`)
-	img.Text(232, 355, fmt.Sprintf("%d", len(v.WebSpecies)/5*2), `fill="black" font-size="11" font-family="Verdana"`)
-	img.Text(332, 355, fmt.Sprintf("%d", len(v.WebSpecies)/5*3), `fill="black" font-size="11" font-family="Verdana"`)
-	img.Text(432, 355, fmt.Sprintf("%d", len(v.WebSpecies)/5*4), `fill="black" font-size="11" font-family="Verdana"`)
-	img.Text(532, 355, fmt.Sprintf("%d", len(v.WebSpecies)/5*5), `fill="black" font-size="11" font-family="Verdana"`)
+	img.Text(132, 355, fmt.Sprintf("%d", len(v.species)/5*1), `fill="black" font-size="11" font-family="Verdana"`)
+	img.Text(232, 355, fmt.Sprintf("%d", len(v.species)/5*2), `fill="black" font-size="11" font-family="Verdana"`)
+	img.Text(332, 355, fmt.Sprintf("%d", len(v.species)/5*3), `fill="black" font-size="11" font-family="Verdana"`)
+	img.Text(432, 355, fmt.Sprintf("%d", len(v.species)/5*4), `fill="black" font-size="11" font-family="Verdana"`)
+	img.Text(532, 355, fmt.Sprintf("%d", len(v.species)/5*5), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(5, 75, "# of Individuals", `style="writing-mode: tb; glyph-orientation-vertical:0; fill: blue; font-size: 10; font-family: Verdana;"`)
 	img.Text(15, 285, fmt.Sprintf("%d", int(float64(popSize)*0.2)), `fill="black" font-size="11" font-family="Verdana"`)
 	img.Text(15, 225, fmt.Sprintf("%d", int(float64(popSize)*0.4)), `fill="black" font-size="11" font-family="Verdana"`)
@@ -391,8 +432,8 @@ func visualizeSpecies(v *Web) error {
 	img.Text(15, 45, fmt.Sprintf("%d", int(float64(popSize)*1.0)), `fill="black" font-size="11" font-family="Verdana"`)
 
 	popIncrement := 300 / popSize
-	for i, generation := range v.WebSpecies {
-		xplot := 500/len(v.WebSpecies)*i + 42
+	for i, generation := range v.species {
+		xplot := 500/len(v.species)*i + 42
 
 		for j, speciesCount := range generation {
 			var speciesColor string
@@ -419,15 +460,16 @@ func visualizeSpecies(v *Web) error {
 }
 
 func visualizeBest(v *Web) error {
+
 	// Create the file
-	f, err := os.Create(path.Join(v.WebPath, "network.html"))
+	f, err := os.Create(v.makePath("network"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	best := v.WebBest[len(v.WebBest)-1]
-	net0, err := v.Decode(best)
+	best := v.best[len(v.best)-1]
+	net0, err := v.ctx.Decoder().Decode(best)
 	if err != nil {
 		return err
 	}
@@ -445,6 +487,7 @@ func visualizeBest(v *Web) error {
 	img := svg.New(f)
 	w, h := 1024.0, 1280.0
 	img.Start(int(w)+30, int(h)+30)
+	defer img.End()
 
 	// Write out the title
 	img.Text(10, 10, fmt.Sprintf("Best Genome is %d", best.ID), `font-size="12"`)

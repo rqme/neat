@@ -23,23 +23,12 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package decoder
 
 import (
-	"fmt"
-
 	"github.com/rqme/neat"
 	"github.com/rqme/neat/network"
 )
 
 // Helper that decodes the genome into a neural network
-type Classic struct {
-
-	// Number of times to loop through the network
-	NetworkIterations int "neat:config"
-}
-
-// Configures the helper
-func (d *Classic) Configure(cfg string) error {
-	return neat.Configure(cfg, d)
-}
+type Classic struct{}
 
 // Decodes the genome into a phenome
 func (d Classic) Decode(g neat.Genome) (p neat.Phenome, err error) {
@@ -55,13 +44,7 @@ func (d Classic) Decode(g neat.Genome) (p neat.Phenome, err error) {
 	return
 }
 
-func (d Classic) decode(g neat.Genome) (net *network.Classic, err error) {
-
-	// Number of network iterations must be set
-	if d.NetworkIterations == 0 {
-		err = fmt.Errorf("Classic decoder must have number of network iterations greater than zero.")
-		return
-	}
+func (d Classic) decode(g neat.Genome) (net neat.Network, err error) {
 
 	// Identify the genes
 	nodes, conns := g.GenesByPosition()
@@ -89,13 +72,22 @@ func (d Classic) decode(g neat.Genome) (net *network.Classic, err error) {
 		}
 	}
 
-	iterations := d.NetworkIterations
-	if forward {
-		iterations = 1 // No need for iterating therough the network.
-	}
-	net, err = network.New(neurons, synapses, iterations)
-
+	net, err = network.New(neurons, synapses, calcIters(neurons, synapses))
 	return
+}
+
+func calcIters(neurons []network.Neuron, synapses []network.Synapse) int {
+	a := make(map[float64]bool, 10)
+	b := make(map[float64]bool, 10)
+	for _, s := range synapses {
+		src := neurons[s.Source]
+		tgt := neurons[s.Target]
+		a[tgt.Y] = true
+		if tgt.Y <= src.Y {
+			b[src.Y] = true
+		}
+	}
+	return len(a) + len(b)
 }
 
 type sortnodes []neat.Node

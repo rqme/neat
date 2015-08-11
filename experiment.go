@@ -28,110 +28,63 @@ package neat
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"sort"
 
 	. "github.com/rqme/errors"
 )
 
+type ExperimentSettings interface {
+	Iterations() int
+	Traits() Traits
+	FitnessType() FitnessType
+	ExperimentName() string
+}
+
 // Experiment provides the definition of how to solve the problem using NEAT
 type Experiment struct {
-	// Configuration
-	Iterations     int         `neat:config`
-	Traits         Traits      `neat:config`
-	FitnessType    FitnessType `neat:config`
-	ExperimentName string      `neat:config`
+	ExperimentSettings
+	ctx Context
 
 	// State
-	Population Population `neat:state`
+	population Population `neat:"state"`
 	cache      map[int]Phenome
-	bestID     int
 	best       Genome
-	Iteration  int
-	Stopped    bool
-
-	// Helpers
-	Archiver
-	Restorer
-	Decoder
-	Generator
-	Searcher
-	Visualizer
-	ids IDSequence
-	mrk Marker
+	iteration  int
+	stopped    bool
 }
+
+func (e *Experiment) SetContext(x Context) error {
+	e.ctx = x
+	e.ctx.State()["population"] = &e.population
+	return nil
+}
+
+func (e Experiment) Context() Context { return e.ctx }
+
+func (e Experiment) Population() Population { return e.population }
+
+func (e Experiment) Stopped() bool { return e.stopped }
+
+func (e Experiment) Iteration() int { return e.iteration }
 
 // String returns a description of the experiment
 func (e Experiment) String() string {
-	return fmt.Sprintf("Experiment %s at iteration %d has best genome %d with fitness %f", e.ExperimentName, e.Iteration, e.bestID, e.best.Fitness)
+	return fmt.Sprintf("Experiment %s at iteration %d has best genome %d with fitness %f", e.ExperimentName(), e.iteration, e.best.ID, e.best.Fitness)
 }
 
-// helpers is a convenience method to enable iterating the helpers
-func (e *Experiment) helpers() []interface{} {
-	return []interface{}{
-		e.Archiver,
-		e.Restorer,
-		e.Decoder,
-		e.Generator,
-		e.Searcher,
-		e.Visualizer,
-	}
-}
-
-// Creates a new Experiment using the specified options. See neat/x/examples for an
-// example Experiment setup
-func New(options ...func(e *Experiment) error) (*Experiment, error) {
-
-	// Configure the new experiment using the options
-	errs := new(Errors)
-	e := new(Experiment)
-	for _, option := range options {
-		err := option(e)
-		if err != nil {
-			errs.Add(fmt.Errorf("Could not create new experiment: %v", err))
-		}
-	}
-
-	// Return the experiment and any errors
-	return e, errs.Err()
-}
-
-func verify(e *Experiment) error {
-	errs := new(Errors)
-	if e.Iterations < 1 {
-		errs.Add(fmt.Errorf("neat.experiment.Validate - Invalid value for Iterations: %d", e.Iterations))
-	}
-
-	// Validate settings and helpers
-	helpers := e.helpers()
-	for _, helper := range helpers {
-		if v, ok := helper.(Validatable); ok {
-			err := v.Validate()
-			if err != nil {
-				errs.Add(err)
-			}
-		}
-	}
-
-	return errs.Err()
-}
-
+// Runs a configured experiment. If restoring, including just the configuration, this must be done
+// prior to calling Run.
 func Run(e *Experiment) error {
 
-	// Restore the configuration and, if available, state
-	if err := e.Restore(); err != nil {
-		return fmt.Errorf("Could not restore the experiment's configuration and, if available, state: %v", err)
-	}
-
 	// Ensure this is a valid experiment
-	if err := verify(e); err != nil {
-		return fmt.Errorf("Verification of experiment failed: %v", err)
+	if e.Iterations() < 1 {
+		return fmt.Errorf("Invalid value for Iterations: %d", e.Iterations())
 	}
-
-	// Reset the IDs to account for loaded state
-	resetIDs(e)
 
 	// Iterate the experiment
-	for e.Iteration = 0; e.Iteration < e.Iterations; e.Iteration++ {
+	for e.iteration = 0; e.iteration < e.Iterations(); e.iteration++ {
 
 		// Reset the innovation history
 		//e.mrk.Reset()
@@ -150,89 +103,35 @@ func Run(e *Experiment) error {
 		if stop, err := search(e); err != nil {
 			return fmt.Errorf("Error evaluating the population: %v", err)
 		} else if stop {
-			e.Stopped = true
+			e.stopped = true
 			break
 		}
 	}
 
 	// Take one last archive and return
-	if err := e.Archive(); err != nil {
+	if err := e.ctx.Archiver().Archive(e.ctx); err != nil {
 		return fmt.Errorf("Could not take last archive of experiment: %v", err)
 	}
-	if err := visualize(e); err != nil {
+	if err := e.ctx.Visualizer().Visualize(e.population); err != nil {
 		return fmt.Errorf("Could not visualize the experiment for the last time: %v", err)
 	}
 	return nil
 }
 
-// Archives the experiment to more permanent storage
-func (e *Experiment) Archive() (err error) {
-	return e.Archiver.Archive(e)
-}
-
-// Restores the experiment from the archived version
-func (e *Experiment) Restore() error {
-	return e.Restorer.Restore(e)
-}
-
-// Configure updates the settings and state of the experiment
-func (e *Experiment) Configure(config string) error {
-	errs := new(Errors)
-	err := Configure(config, e)
-	if err != nil {
-		errs.Add(fmt.Errorf("Could not configure the experiment: %s", err))
-	}
-	for _, helper := range e.helpers() {
-		if x, ok := helper.(Configurable); ok {
-			err = x.Configure(config)
-			if err != nil {
-				errs.Add(err)
-			}
-		}
-	}
-	return errs.Err()
-}
-
-// Resets the ID sequence and innovation history using the current population
-func resetIDs(e *Experiment) {
-	// Load the ID sequence
-	ids := new(idsequence)
-	ids.load(e.Population.Genomes)
-	e.ids = ids
-
-	// Load the innovations
-	mrk := new(marker)
-	mrk.ids = e.ids
-	mrk.Reset()
-	mrk.load(e.Population.Genomes)
-	e.mrk = mrk
-
-	// Set the ID and innovation with the helpers
-	helpers := e.helpers()
-	for _, helper := range helpers {
-		if v, ok := helper.(Identifies); ok {
-			v.SetIDs(e.ids)
-		}
-		if v, ok := helper.(Marks); ok {
-			v.SetMarker(e.mrk)
-		}
-	}
-}
-
 // Advances the experiment to the next generation
 func advance(e *Experiment) error {
 
-	curr := e.Population
-	next, err := e.Generate(curr)
+	curr := e.population
+	next, err := e.ctx.Generator().Generate(curr)
 	if err != nil {
 		return err
 	}
 
 	if next.Generation > curr.Generation {
-		if err = visualize(e); err != nil {
+		if err = e.ctx.Visualizer().Visualize(e.population); err != nil {
 			return err
 		}
-		if err = e.Archive(); err != nil {
+		if err = e.ctx.Archiver().Archive(e.ctx); err != nil {
 			return err
 		}
 		if err = updateSettings(e, e.best); err != nil {
@@ -240,23 +139,15 @@ func advance(e *Experiment) error {
 		}
 	}
 
-	e.Population = next
+	e.population = next
 	return nil
-}
-
-// visualize informs the Visualizer helper of the current population
-func visualize(e *Experiment) error {
-	if e.Visualizer == nil {
-		return nil
-	}
-	return e.Visualize(e.Population)
 }
 
 // Update the settings based on the traits of a genome
 func updateSettings(e *Experiment, g Genome) error {
 	cnt := 0
 	b := bytes.NewBufferString("{")
-	for t, trait := range e.Traits {
+	for t, trait := range e.Traits() {
 		if trait.IsSetting {
 			if cnt > 0 {
 				b.WriteString(",\n")
@@ -266,7 +157,9 @@ func updateSettings(e *Experiment, g Genome) error {
 		}
 	}
 	b.WriteString("\n}")
-	return e.Configure(b.String())
+
+	enc := json.NewEncoder(b)
+	return enc.Encode(&e.ctx)
 }
 
 // Updates the cache of phenomes
@@ -277,18 +170,18 @@ func updateCache(e *Experiment) (err error) {
 	} else {
 		old = e.cache
 	}
-	e.cache = make(map[int]Phenome, len(e.Population.Genomes))
+	e.cache = make(map[int]Phenome, len(e.population.Genomes))
 
 	errs := new(Errors)
 	pc := make(chan Phenome)
 	cnt := 0
-	for _, g := range e.Population.Genomes {
+	for _, g := range e.population.Genomes {
 		if p, ok := old[g.ID]; ok {
 			e.cache[g.ID] = p
 		} else {
 			cnt += 1
 			go func(g Genome) {
-				p, err := e.Decode(g)
+				p, err := e.ctx.Decoder().Decode(g)
 				if err != nil {
 					errs.Add(fmt.Errorf("Unable to decode genome [%d]: %v", g.ID, err))
 				}
@@ -311,8 +204,8 @@ func updateCache(e *Experiment) (err error) {
 func search(e *Experiment) (stop bool, err error) {
 
 	// Map the genomes for convenience
-	m := make(map[int]int, len(e.Population.Genomes))
-	for i, g := range e.Population.Genomes {
+	m := make(map[int]int, len(e.population.Genomes))
+	for i, g := range e.population.Genomes {
 		m[g.ID] = i
 	}
 
@@ -321,47 +214,58 @@ func search(e *Experiment) (stop bool, err error) {
 	for _, p := range e.cache {
 		phenomes = append(phenomes, p)
 	}
-	if h, ok := e.Searcher.(Phenomable); ok {
-		if err = h.SetPhenomes(phenomes); err != nil {
-			return
+	for _, h := range []interface{}{e.ctx.Searcher(), e.ctx.Evaluator()} {
+		if ph, ok := h.(Phenomable); ok {
+			if err = ph.SetPhenomes(phenomes); err != nil {
+				return
+			}
+		}
+		if sh, ok := h.(Setupable); ok {
+			if err = sh.Setup(); err != nil {
+				return
+			}
 		}
 	}
-	if h, ok := e.Searcher.(Setupable); ok {
-		if err = h.Setup(); err != nil {
-			return
-		}
-	}
-	results, err := e.Search(phenomes)
-	if err != nil {
+
+	var rs Results
+	if rs, err = e.ctx.Searcher().Search(phenomes); err != nil {
 		return
 	}
-	if h, ok := e.Searcher.(Takedownable); ok {
-		if err = h.Takedown(); err != nil {
-			return
+
+	for _, h := range []interface{}{e.ctx.Evaluator(), e.ctx.Searcher()} {
+		if th, ok := h.(Takedownable); ok {
+			if err = th.Takedown(); err != nil {
+				return
+			}
 		}
 	}
 
 	// Update the fitnesses
 	var best Genome
 	errs := new(Errors)
-	fit := make([]float64, len(e.Population.Genomes))
+	// := make([]float64, len(e.population.Genomes))
 	// TODO: make this concurrent
-	for _, r := range results {
+	for _, r := range rs {
 		i := m[r.ID()]
 		if err = r.Err(); err != nil {
 			errs.Add(fmt.Errorf("Error updating fitness for genome [%d]: %v", r.ID(), r.Err()))
 		}
-		e.Population.Genomes[i].Fitness = r.Fitness()
-		fit[i] = e.Population.Genomes[i].Fitness
-		if e.Population.Genomes[i].Fitness > best.Fitness {
-			best = e.Population.Genomes[i]
+		e.population.Genomes[i].Fitness = r.Fitness()
+		if imp, ok := r.(Improvable); ok {
+			e.population.Genomes[i].Improvement = imp.Improvement()
+		} else {
+			e.population.Genomes[i].Improvement = e.population.Genomes[i].Fitness
+		}
+		//fit[i] = e.population.Genomes[i].Fitness
+		if e.population.Genomes[i].Fitness > best.Fitness {
+			best = e.population.Genomes[i]
 		}
 		stop = stop || r.Stop()
 	}
 
 	// Update the best genome
 	if errs.Err() == nil {
-		if e.FitnessType == AbsoluteFitness {
+		if e.FitnessType() == Absolute {
 			if best.Fitness > e.best.Fitness {
 				e.best = best
 			}
@@ -369,5 +273,8 @@ func search(e *Experiment) (stop bool, err error) {
 			e.best = best
 		}
 	}
+
+	// Leave the genomes sorted by their fitness descending
+	sort.Sort(sort.Reverse(e.population.Genomes))
 	return stop, errs.Err()
 }

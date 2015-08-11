@@ -31,6 +31,14 @@ import (
 	"github.com/rqme/neat"
 )
 
+// Phased mutatation settings
+type PhasedSettings interface {
+	PruningPhaseThreshold() float64
+	MaxMPCAge() int
+	MaxImprovementAge() int
+	ImprovementType() neat.FitnessType
+}
+
 // Phased Searching
 // As an alternative to blended searching I propose the use of 'phased' searching, so called because
 // the NEAT search switches between a complexifying phase and a simplifying(or pruning) phase.
@@ -62,28 +70,33 @@ import (
 // then we hold off the pruning phase until the fitness stops rising.
 //
 // from Colin Green (http://sharpneat.sourceforge.net/phasedsearch.html)
-
 type Phased struct {
-	PruningPhaseThreshold float64 "neat:config"
-	MaxMPCAge             int     "neat:config"
-	MaxFitnessAge         int     "neat:config"
-	neat.FitnessType      "neat:config"
+	PhasedSettings
+	ctx neat.Context
 
 	// Inner mutators
 	Complexify
 	Pruning
 
-	// State
-	isPruning           bool
-	pruneThresh         float64
-	targetMPC, fitness  float64
-	ageMPC, ageFitness  int
-	minMPC, lastFitness float64
+	// internal state
+	isPruning               bool
+	pruneThresh             float64
+	targetMPC, fitness      float64
+	ageMPC, ageImprovement  int
+	minMPC, lastImprovement float64
 }
 
-// Configures the helper from a JSON string
-func (m *Phased) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
+func NewPhased(ps PhasedSettings, cs ComplexifySettings, ns PruningSettings) *Phased {
+	return &Phased{
+		PhasedSettings: ps,
+		Complexify:     Complexify{ComplexifySettings: cs},
+		Pruning:        Pruning{PruningSettings: ns},
+	}
+}
+
+func (m *Phased) SetContext(x neat.Context) error {
+	m.ctx = x
+	return m.Complexify.SetContext(x)
 }
 
 // Mutates the Genome by through complexifiying or pruning depending on current phase
@@ -104,7 +117,7 @@ func (m *Phased) SetPopulation(p neat.Population) error {
 	fit := make([]float64, len(p.Genomes))
 	for i, g := range p.Genomes {
 		n += float64(g.Complexity())
-		fit[i] = g.Fitness
+		fit[i] = g.Improvement
 	}
 	mpc := n / float64(len(p.Genomes))
 	//neat.DBG("mpc %f fit %f", mpc, fit)
@@ -116,41 +129,46 @@ func (m *Phased) SetPopulation(p neat.Population) error {
 	}
 
 	var f float64
-	if m.FitnessType == neat.AbsoluteFitness {
+	if m.ImprovementType() == neat.Absolute {
 		f, _ = stats.Max(fit)
 	} else {
 		f, _ = stats.VarP(fit)
 	}
 
-	// Looking for a continued increase in fitness (AbsoluteFitness) or an uptick in variance (RelativeFitness)
-	if f > m.lastFitness {
-		m.ageFitness = 0
-		m.lastFitness = f
+	// Looking for a continued increase in fitness (Absolute) or an uptick in variance (RelativeImprovement)
+	if f > m.lastImprovement {
+		m.ageImprovement = 0
+		m.lastImprovement = f
 	} else {
-		m.ageFitness += 1
+		m.ageImprovement += 1
 	}
 
 	// First run, just set the initial threshold and return
 	if m.targetMPC == 0 {
 		m.isPruning = false
-		m.targetMPC = mpc + m.PruningPhaseThreshold
+		m.targetMPC = mpc + m.PruningPhaseThreshold()
 		return nil
 	}
 
 	// Check for a phase change
 	if m.isPruning {
-		if m.ageMPC > m.MaxMPCAge {
+		if m.ageMPC > m.MaxMPCAge() {
 			m.isPruning = false
-			m.targetMPC = mpc + m.PruningPhaseThreshold
-			m.ageFitness = 0
-			m.lastFitness = 0
+			m.targetMPC = mpc + m.PruningPhaseThreshold()
+			m.ageImprovement = 0
+			m.lastImprovement = 0
 		}
 	} else {
-		if mpc >= m.targetMPC && m.ageFitness > m.MaxFitnessAge {
+		if mpc >= m.targetMPC && m.ageImprovement > m.MaxImprovementAge() {
 			m.isPruning = true
 			m.ageMPC = 0
 			m.minMPC = mpc
 		}
+	}
+
+	// Toggle crossover as necessary
+	if crs, ok := m.ctx.(neat.Crossoverable); ok {
+		crs.SetCrossover(!m.isPruning)
 	}
 	return nil
 }

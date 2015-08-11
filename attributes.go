@@ -26,27 +26,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package neat
 
-// Configurable helpers can have their state or settings changed by passing in a JSON record
-type Configurable interface {
-	Configure(string) error
-}
-
-// Allows the helper to set IDs from a common sequence
-type Identifies interface {
-	SetIDs(IDSequence)
-}
-
-// Allows the helper to mark new connections
-type Marks interface {
-	SetMarker(Marker)
-}
-
-// Indicates that the helper can validate itself
-type Validatable interface {
-	// Returns any validation error
-	Validate() error
-}
-
 // Provides setup actions in the helper's lifestyle
 type Setupable interface {
 	// Sets up the helper
@@ -57,6 +36,10 @@ type Setupable interface {
 type Takedownable interface {
 	// Takes down the helper
 	Takedown() error
+}
+
+type OriginalFitnessable interface {
+	OriginalFitness() float64
 }
 
 // A helper that would like to see the population
@@ -75,4 +58,29 @@ type Phenomable interface {
 type Behaviorable interface {
 	// Returns the expressed behaviors
 	Behavior() []float64
+}
+
+// Demonstrable indicates that a helper is capable of showing (or hiding) detail of its work during
+// execution. This is typically employed by an evaluator and turned on when evaluating the "best"
+// genome after the evolution is completed.
+type Demonstrable interface {
+	// ShowWork toggles the flag informing the helper to show (or) not the details during execution
+	ShowWork(bool)
+}
+
+// Contextable describes an item that can receive a context
+type Contextable interface {
+	SetContext(Context) error
+}
+
+type Crossoverable interface {
+	SetCrossover(bool) error
+}
+
+type Trialable interface {
+	SetTrial(int) error
+}
+
+type Improvable interface {
+	Improvement() float64
 }

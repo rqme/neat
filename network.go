@@ -90,8 +90,55 @@ func (a ActivationType) String() string {
 	}
 }
 
+func (a ActivationType) Range() (float64, float64) {
+	switch a {
+	case Direct:
+		return math.Inf(-1), math.Inf(1)
+	case SteependSigmoid:
+		return 0, 1.0
+	case Sigmoid:
+		return 0, 1.0
+	case Tanh:
+		return -1.0, 1.0
+	case InverseAbs:
+		return -1.0, 1.0
+	default:
+		return math.NaN(), math.NaN()
+	}
+}
+
 func DirectActivation(x float64) float64          { return x }
-func SigmoidActivation(x float64) float64         { return 1.0 / (1.0 + math.Exp(-x)) }
-func SteependSigmoidActivation(x float64) float64 { return 1.0 / (1.0 + math.Exp(-4.9*x)) }
+func SigmoidActivation(x float64) float64         { return 1.0 / (1.0 + exp1(-x)) }
+func SteependSigmoidActivation(x float64) float64 { return 1.0 / (1.0 + exp1(-4.9*x)) }
 func TanhActivation(x float64) float64            { return math.Tanh(0.9 * x) }
 func InverseAbsActivation(x float64) float64      { return x / (1.0 + math.Abs(x)) }
+
+// Speed up over math.Exp by using less precision
+// https://codingforspeed.com/using-faster-exponential-approximation/
+func exp1(x float64) float64 {
+	x = 1.0 + x/256.0
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	return x
+}
+
+func exp2(x float64) float64 {
+	x = 1.0 + x/1024
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	x *= x
+	return x
+}

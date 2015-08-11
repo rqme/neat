@@ -32,15 +32,12 @@ import (
 	"math/rand"
 )
 
-type Activation struct {
-
-	// Probability that the node's activation will be mutated
-	MutateActivationProbability float64 "neat:config"
+type ActivationSettings interface {
+	MutateActivationProbability() float64 // Probability that the node's activation will be mutated
 }
 
-// Configures the helper from a JSON string
-func (m *Activation) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
+type Activation struct {
+	ActivationSettings
 }
 
 // Mutates a genome's weights
@@ -48,7 +45,7 @@ func (m Activation) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
 	for k, node := range g.Nodes {
 		if node.NeuronType == neat.Hidden {
-			if rng.Float64() < m.MutateActivationProbability {
+			if rng.Float64() < m.MutateActivationProbability() {
 				node.ActivationType = neat.Activations[rng.Intn(len(neat.Activations))]
 				g.Nodes[k] = node
 			}

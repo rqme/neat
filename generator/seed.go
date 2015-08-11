@@ -27,48 +27,56 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package generator
 
 import (
-	"github.com/rqme/neat"
-
 	"math/rand"
+
+	"github.com/rqme/neat"
 )
 
 // Returns a genome build from the parameters
-func createSeed(marker neat.Marker, inputs, outputs int, weightRange float64, outputActivation neat.ActivationType, traits neat.Traits) (seed neat.Genome) {
-
+func createSeed(ctx neat.Context, cfg ClassicSettings) (adam neat.Genome) {
 	// Create the genome
-	seed.Nodes = make(map[int]neat.Node, 1+inputs+outputs)
+	inputs := cfg.NumInputs()
+	outputs := cfg.NumOutputs()
+	adam = neat.Genome{
+		Nodes: make(map[int]neat.Node, 1+inputs+outputs),
+	}
+	nodes := make([]neat.Node, len(adam.Nodes))
 	node := neat.Node{NeuronType: neat.Bias, ActivationType: neat.Direct, X: 0, Y: 0}
-	marker.MarkNode(&node)
-	seed.Nodes[node.Innovation] = node
+	node.Innovation = ctx.Innovation(neat.NodeInnovation, node.Key())
+	adam.Nodes[node.Innovation] = node
+	nodes = append(nodes, node)
 	for i := 0; i < inputs; i++ {
 		node = neat.Node{NeuronType: neat.Input, ActivationType: neat.Direct, X: float64(i+1) / float64(inputs), Y: 0}
-		marker.MarkNode(&node)
-		seed.Nodes[node.Innovation] = node
+		node.Innovation = ctx.Innovation(neat.NodeInnovation, node.Key())
+		adam.Nodes[node.Innovation] = node
+		nodes = append(nodes, node)
 	}
 	x := 0.5
 	for i := 0; i < outputs; i++ {
 		if outputs > 1 {
 			x = float64(i) / float64(outputs-1)
 		}
-		node = neat.Node{NeuronType: neat.Output, ActivationType: outputActivation, X: x, Y: 1}
-		marker.MarkNode(&node)
-		seed.Nodes[node.Innovation] = node
+		node = neat.Node{NeuronType: neat.Output, ActivationType: cfg.OutputActivation(), X: x, Y: 1}
+		node.Innovation = ctx.Innovation(neat.NodeInnovation, node.Key())
+		adam.Nodes[node.Innovation] = node
+		nodes = append(nodes, node)
 	}
 
 	rng := rand.New(rand.NewSource(rand.Int63()))
-	seed.Conns = make(map[int]neat.Connection, (1+inputs)*outputs)
+	adam.Conns = make(map[int]neat.Connection, (1+inputs)*outputs)
 	for i := 0; i < 1+inputs; i++ {
 		for j := 0; j < outputs; j++ {
-			w := (rng.Float64()*2.0 - 1.0) * weightRange
-			conn := neat.Connection{Source: seed.Nodes[i].Innovation, Target: seed.Nodes[j+1+inputs].Innovation, Enabled: true, Weight: w}
-			marker.MarkConn(&conn)
-			seed.Conns[conn.Innovation] = conn
+			w := (rng.Float64()*2.0 - 1.0) * cfg.WeightRange()
+			conn := neat.Connection{Source: nodes[i].Innovation, Target: nodes[j+1+inputs].Innovation, Enabled: true, Weight: w}
+			conn.Innovation = ctx.Innovation(neat.ConnInnovation, conn.Key())
+			adam.Conns[conn.Innovation] = conn
 		}
 	}
 
-	seed.Traits = make([]float64, len(traits))
-	for i, trait := range traits {
-		seed.Traits[i] = rng.Float64()*(trait.Max-trait.Min) + trait.Min // TODO: Get setting values from configuration
+	ts := cfg.Traits()
+	adam.Traits = make([]float64, len(ts))
+	for i, trait := range ts {
+		adam.Traits[i] = rng.Float64()*(trait.Max-trait.Min) + trait.Min // TODO: Get setting values from configuration
 	}
-	return
+	return adam
 }

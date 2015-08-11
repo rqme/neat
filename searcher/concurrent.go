@@ -31,14 +31,11 @@ import (
 )
 
 type Concurrent struct {
-	neat.Evaluator
+	ctx neat.Context
 }
 
-// Configures the helper from a JSON string
-func (s *Concurrent) Configure(cfg string) error {
-	if x, ok := s.Evaluator.(neat.Configurable); ok {
-		return x.Configure(cfg)
-	}
+func (s *Concurrent) SetContext(x neat.Context) error {
+	s.ctx = x
 	return nil
 }
 
@@ -47,7 +44,7 @@ func (s Concurrent) Search(phenomes []neat.Phenome) ([]neat.Result, error) {
 	r := make(chan neat.Result)
 	for _, p := range phenomes {
 		go func(p neat.Phenome) {
-			r <- s.Evaluate(p)
+			r <- s.ctx.Evaluator().Evaluate(p)
 		}(p)
 	}
 	results := make([]neat.Result, len(phenomes))
@@ -55,25 +52,4 @@ func (s Concurrent) Search(phenomes []neat.Phenome) ([]neat.Result, error) {
 		results[i] = <-r
 	}
 	return results, nil
-}
-
-func (s *Concurrent) Setup() error {
-	if h, ok := s.Evaluator.(neat.Setupable); ok {
-		return h.Setup()
-	}
-	return nil
-}
-
-func (s *Concurrent) Takedown() error {
-	if h, ok := s.Evaluator.(neat.Takedownable); ok {
-		return h.Takedown()
-	}
-	return nil
-}
-
-func (s *Concurrent) SetPhenomes(p neat.Phenomes) error {
-	if h, ok := s.Evaluator.(neat.Phenomable); ok {
-		return h.SetPhenomes(p)
-	}
-	return nil
 }

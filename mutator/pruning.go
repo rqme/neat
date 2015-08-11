@@ -32,26 +32,22 @@ import (
 	"math/rand"
 )
 
+// Pruning mutation settings
+type PruningSettings interface {
+	DelNodeProbability() float64 // Probablity a node will be removed to the genome
+	DelConnProbability() float64 // Probability a connection will be removed to the genome
+}
+
 type Pruning struct {
-
-	// Probablity a node will be removed to the genome
-	DelNodeProbability float64 "neat:config"
-
-	// Probability a connection will be removed to the genome
-	DelConnProbability float64 "neat:config"
+	PruningSettings
 }
 
-// Configures the helper from a JSON string
-func (m *Pruning) Configure(cfg string) error {
-	return neat.Configure(cfg, m)
-}
-
-// Mutates a genome's weights
+// Mutates a genome's structure by selectiving removing nodes and connections
 func (m Pruning) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
-	if rng.Float64() < m.DelNodeProbability {
+	if rng.Float64() < m.DelNodeProbability() {
 		m.delNode(rng, g)
-	} else if rng.Float64() < m.DelConnProbability {
+	} else if rng.Float64() < m.DelConnProbability() {
 		m.delConn(rng, g)
 	}
 	return nil
@@ -178,5 +174,4 @@ func (m *Pruning) delConn(rng *rand.Rand, g *neat.Genome) {
 			delete(g.Nodes, node.Innovation)
 		}
 	}
-
 }
