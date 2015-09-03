@@ -1,8 +1,8 @@
 {
-  "ExperimentName": "Maze",
-  "PopulationSize": 250,
+  "ExperimentName": "Boxes NEAT",
+  "PopulationSize": 150,
   "Iterations": 100,
-  "NumInputs": 2,
+  "NumInputs": 121,
   "NumOutputs": 1,
   "FitnessType": 0,
   
@@ -14,10 +14,11 @@
   "ExcessCoefficient": 1,
   "WeightCoefficient": 0.4,
   
-  "AddConnProbability": 0.1,
-  "AddNodeProbability": 0.005,
+  "AddConnProbability": 0.025,
+  "AddNodeProbability": 0.015,
   "EnableProbability": 0.2,
   "HiddenActivation": 2,
+  "MutateActivationProbability": 0.25,
   "MutateOnlyProbability": 0.25,
   "MutateSettingProbability": 0,
   "MutateTraitProbability": 0,
@@ -33,6 +34,6 @@
   "OutputActivation": 2,
   "SurvivalThreshold": 0.2,
 
-  "ArchivePath": "/tmp/maze",
-  "WebPath": "/tmp/maze"
+  "ArchivePath": "/tmp/boxes",
+  "WebPath": "/tmp/boxes"
 }

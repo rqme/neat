@@ -37,9 +37,9 @@ type Complete struct {
 	Activation
 }
 
-func NewComplete(ps PhasedSettings, ws WeightSettings, ts TraitSettings, as ActivationSettings) *Complete {
+func NewComplete(ps PhasedSettings, cs ComplexifySettings, ns PruningSettings, ws WeightSettings, ts TraitSettings, as ActivationSettings) *Complete {
 	return &Complete{
-		Phased:     Phased{PhasedSettings: ps},
+		Phased:     *NewPhased(ps, cs, ns),
 		Weight:     Weight{WeightSettings: ws},
 		Trait:      Trait{TraitSettings: ts},
 		Activation: Activation{ActivationSettings: as},

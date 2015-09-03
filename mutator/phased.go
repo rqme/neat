@@ -172,6 +172,3 @@ func (m *Phased) SetPopulation(p neat.Population) error {
 	}
 	return nil
 }
-
-// Informs the experiment to disable crossover when in pruning phase
-func (m Phased) DisableCrossover() bool { return m.isPruning }

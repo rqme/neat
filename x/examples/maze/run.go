@@ -1,3 +1,28 @@
+/*
+Copyright (c) 2015, Brian Hummer (brian@redq.me)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 package main
 
 import (
@@ -9,9 +34,10 @@ import (
 	"strconv"
 	"strings"
 
-	svg "github.com/ajstarks/svgo"
 	"github.com/rqme/neat"
+	"github.com/rqme/neat/generator"
 	"github.com/rqme/neat/result"
+	"github.com/rqme/neat/searcher"
 	"github.com/rqme/neat/x/starter"
 	"github.com/rqme/neat/x/trials"
 )
@@ -20,6 +46,8 @@ var (
 	MazeFile = flag.String("maze", "medium_maze.txt", "Maze file to use in the experiment")
 	Steps    = flag.Int("steps", 400, "Number of steps a hero has to solve the maze")
 	Novelty  = flag.Bool("novelty", false, "Use novelty search instead of objective fitness")
+	RealTime = flag.Bool("realtime", false, "Use the real-time generator and evaluator")
+	WorkPath = flag.String("work-path", ".", "Output directory for maze diagrams")
 )
 
 type Result struct {
@@ -28,123 +56,6 @@ type Result struct {
 }
 
 func (r *Result) Behavior() []float64 { return r.behavior }
-
-type Evaluator struct {
-	Environment
-	show     bool
-	workPath string
-
-	useTrial bool
-	trialNum int
-}
-
-func (e *Evaluator) SetTrial(t int) error {
-	e.useTrial = true
-	e.trialNum = t
-	return nil
-}
-
-func (e Evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
-
-	// Clone the environemnt
-	var env *Environment
-	cln := e.Environment.clone()
-	env = &cln
-	env.init()
-	h := &env.Hero
-
-	// Iterate the maze
-	var err error
-	paths := make([]Line, 0, *Steps)
-	stop := false
-	for i := 0; i < *Steps; i++ {
-
-		// Note the start of the path
-		a := h.Location
-
-		// Update the hero's location
-		var outputs []float64
-		inputs := generateNeuralInputs(*env)
-		if outputs, err = p.Activate(inputs); err != nil {
-			break
-		}
-		interpretOutputs(env, outputs[0], outputs[1])
-		update(env)
-		b := h.Location
-		paths = append(paths, Line{A: a, B: b})
-
-		// Look for solution
-		stop = distanceToTarget(env) < 5.0
-		if stop {
-			break
-		}
-	}
-	f := 300.0 - distanceToTarget(env)         // fitness
-	b := []float64{h.Location.X, h.Location.Y} // behavior
-	r = &Result{Classic: result.New(p.ID(), f, err, stop), behavior: b}
-
-	// Output the maze
-	if e.show {
-		// Write the file
-		var t string
-		if e.useTrial {
-			t = fmt.Sprintf("-%d", e.trialNum)
-		}
-		if err := showMaze(fmt.Sprintf("maze%s-%d.svg", t, p.ID()), *env, paths); err != nil {
-			log.Println("Could not output maze run:", err)
-		}
-	}
-	return
-}
-
-func showMaze(p string, e Environment, hist []Line) error {
-
-	// Determine image size
-	var h, w float64
-	for _, line := range e.Lines {
-		if line.A.X > w {
-			w = line.A.X
-		}
-		if line.A.Y > h {
-			h = line.A.Y
-		}
-		if line.B.X > w {
-			w = line.B.X
-		}
-		if line.B.Y > h {
-			h = line.B.Y
-		}
-	}
-
-	// Create the image
-	f, err := os.Create(p)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	img := svg.New(f)
-	img.Start(int(w), int(h))
-	defer img.End()
-
-	// Add the maze
-	img.Circle(int(hist[0].A.X), int(hist[0].A.Y), 4, `fill="green"`) // start
-	img.Circle(int(e.End.X), int(e.End.Y), 4, `fill="red"`)
-
-	for _, line := range e.Lines {
-		img.Path(fmt.Sprintf("M %f %f L %f %f", line.A.X, line.A.Y, line.B.X, line.B.Y), `stroke-width="1" stroke="black" fill="none"`)
-	}
-
-	for _, line := range hist {
-		img.Path(fmt.Sprintf("M %f %f L %f %f", line.A.X, line.A.Y, line.B.X, line.B.Y), `stroke-width="1" stroke="blue" fill="none"`)
-
-	}
-	return nil
-}
-
-func (e *Evaluator) ShowWork(s bool) {
-	e.show = s
-}
 
 func loadEnv(p string) (e Environment, err error) {
 	var f *os.File
@@ -215,6 +126,11 @@ func main() {
 	} else {
 		fmt.Println("Using Fitness search")
 	}
+	if *RealTime {
+		fmt.Println("Using Real-Time generator")
+	} else {
+		fmt.Println("Using Classic generator")
+	}
 	fmt.Println("Using", *Steps, "time steps per evaluation")
 	fmt.Println("Loading maze file:", *MazeFile)
 	var err error
@@ -225,12 +141,25 @@ func main() {
 
 	if err = trials.Run(func(i int) (*neat.Experiment, error) {
 
-		eval := &Evaluator{Environment: orig.clone()}
 		var ctx *starter.Context
-		if *Novelty {
-			ctx = starter.NewNoveltyContext(eval)
+		var eval neat.Evaluator
+		var gen neat.Generator
+		if *RealTime {
+			eval = &RTEvaluator{Evaluator: Evaluator{Environment: orig.clone()}}
+			gen = &generator.RealTime{RealTimeSettings: ctx}
 		} else {
-			ctx = starter.NewClassicContext(eval)
+			eval = &Evaluator{Environment: orig.clone()}
+			gen = &generator.Classic{ClassicSettings: ctx}
+		}
+		if *Novelty {
+			ctx = starter.NewContext(eval, func(ctx *starter.Context) {
+				ctx.SetGenerator(gen)
+				ctx.SetSearcher(&searcher.Novelty{NoveltySettings: ctx, Searcher: &searcher.Concurrent{}})
+			})
+		} else {
+			ctx = starter.NewContext(eval, func(ctx *starter.Context) {
+				ctx.SetGenerator(gen)
+			})
 		}
 
 		if exp, err := starter.NewExperiment(ctx, ctx, i); err != nil {
@@ -244,5 +173,4 @@ func main() {
 	}); err != nil {
 		log.Fatal("Could not run maze experiment: ", err)
 	}
-
 }

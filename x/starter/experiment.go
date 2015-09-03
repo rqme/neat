@@ -32,14 +32,6 @@ import (
 
 	"github.com/rqme/neat"
 	"github.com/rqme/neat/archiver"
-	"github.com/rqme/neat/comparer"
-	"github.com/rqme/neat/crosser"
-	"github.com/rqme/neat/decoder"
-	"github.com/rqme/neat/generator"
-	"github.com/rqme/neat/mutator"
-	"github.com/rqme/neat/searcher"
-	"github.com/rqme/neat/speciater"
-	"github.com/rqme/neat/visualizer"
 )
 
 const (
@@ -101,81 +93,4 @@ func NewExperiment(ctx neat.Context, cfg neat.ExperimentSettings, t int) (exp *n
 		ph.SetPopulation(exp.Population())
 	}
 	return
-}
-
-func NewClassicContext(evl neat.Evaluator) *Context {
-	// Create the context
-	ctx := NewContext()
-	if *ConfigName == "" {
-		ctx.Settings.ArchiveName = os.Args[0]
-	} else {
-		ctx.Settings.ArchiveName = *ConfigName // Can be overriden in settings file
-	}
-	ctx.arc = &archiver.File{FileSettings: ctx}
-	ctx.cmp = &comparer.Classic{ClassicSettings: ctx}
-	ctx.crs = &crosser.Classic{ClassicSettings: ctx}
-	ctx.dec = &decoder.Classic{}
-	ctx.evl = evl
-	ctx.gen = &generator.Classic{ClassicSettings: ctx}
-	ctx.mut = mutator.New(ctx, ctx, ctx)
-	ctx.src = &searcher.Concurrent{}
-	ctx.spc = speciater.NewDynamic(ctx, ctx)
-	ctx.vis = &visualizer.Web{WebSettings: ctx}
-
-	attachContext(ctx)
-	return ctx
-}
-
-func NewNoveltyContext(evl neat.Evaluator) *Context {
-	// Create the context
-	ctx := NewContext()
-	if *ConfigName == "" {
-		ctx.Settings.ArchiveName = os.Args[0]
-	} else {
-		ctx.Settings.ArchiveName = *ConfigName // Can be overriden in settings file
-	}
-	ctx.arc = &archiver.File{FileSettings: ctx}
-	ctx.cmp = &comparer.Classic{ClassicSettings: ctx}
-	ctx.crs = &crosser.Classic{ClassicSettings: ctx}
-	ctx.dec = &decoder.Classic{}
-	ctx.evl = evl
-	ctx.gen = &generator.Classic{ClassicSettings: ctx}
-	ctx.mut = mutator.New(ctx, ctx, ctx)
-	ctx.src = &searcher.Novelty{NoveltySettings: ctx, Searcher: &searcher.Concurrent{}}
-	ctx.spc = speciater.NewDynamic(ctx, ctx)
-	ctx.vis = &visualizer.Web{WebSettings: ctx}
-
-	attachContext(ctx)
-	return ctx
-}
-
-func NewHyperNEATContext(evl neat.Evaluator) *Context {
-	// Create the context
-	ctx := NewContext()
-	if *ConfigName == "" {
-		ctx.Settings.ArchiveName = os.Args[0]
-	} else {
-		ctx.Settings.ArchiveName = *ConfigName // Can be overriden in settings file
-	}
-	ctx.arc = &archiver.File{FileSettings: ctx}
-	ctx.cmp = &comparer.Classic{ClassicSettings: ctx}
-	ctx.crs = &crosser.Classic{ClassicSettings: ctx}
-	ctx.dec = &decoder.HyperNEAT{CppnDecoder: decoder.Classic{}, HyperNEATSettings: ctx}
-	ctx.evl = evl
-	ctx.gen = &generator.Classic{ClassicSettings: ctx}
-	ctx.mut = mutator.NewComplete(ctx, ctx, ctx, ctx)
-	ctx.src = &searcher.Concurrent{}
-	ctx.spc = speciater.NewDynamic(ctx, ctx)
-	ctx.vis = &visualizer.Web{WebSettings: ctx}
-
-	attachContext(ctx)
-	return ctx
-}
-
-func attachContext(ctx *Context) {
-	for _, h := range []interface{}{ctx.arc, ctx.cmp, ctx.crs, ctx.dec, ctx.evl, ctx.gen, ctx.mut, ctx.src, ctx.spc, ctx.vis} {
-		if ch, ok := h.(neat.Contextable); ok {
-			ch.SetContext(ctx)
-		}
-	}
 }

@@ -1,3 +1,28 @@
+/*
+Copyright (c) 2015, Brian Hummer (brian@redq.me)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 package starter
 
 import (
@@ -17,12 +42,6 @@ type identify struct {
 	innos  map[innovation]int
 }
 
-func newIdentify() identify {
-	return identify{
-		innos: make(map[innovation]int, 100),
-	}
-}
-
 // NextID returns the next id in the context's sequence
 func (x *identify) NextID() int {
 	x.Lock()
@@ -31,6 +50,7 @@ func (x *identify) NextID() int {
 	return x.lastID
 }
 
+// Returns the innovation number for this type and key
 func (x *identify) Innovation(t neat.InnoType, k neat.InnoKey) int {
 	x.Lock()
 	defer x.Unlock()
@@ -46,6 +66,7 @@ func (x *identify) Innovation(t neat.InnoType, k neat.InnoKey) int {
 	return id
 }
 
+// Initializes the ID sequence and innovation history
 func (x *identify) SetPopulation(p neat.Population) error {
 	for _, g := range p.Genomes {
 		if g.ID > x.lastID {

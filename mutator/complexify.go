@@ -52,7 +52,7 @@ func (m *Complexify) SetContext(x neat.Context) error {
 }
 
 // Mutates a genome's weights
-func (m Complexify) Mutate(g *neat.Genome) error {
+func (m *Complexify) Mutate(g *neat.Genome) error {
 	rng := rand.New(rand.NewSource(rand.Int63()))
 	if rng.Float64() < m.AddNodeProbability() {
 		m.addNode(rng, g)

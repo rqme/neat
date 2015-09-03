@@ -27,6 +27,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -87,16 +88,17 @@ func (e Evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
 
 	// Display the work
 	if e.show {
-		fmt.Println()
+		b := bytes.NewBufferString("\n")
 		if e.useTrial {
-			fmt.Printf("Trial %d ", e.trialNum)
+			b.WriteString(fmt.Sprintf("Trial %d ", e.trialNum))
 		}
-		fmt.Printf("XOR Evaluation for genome %d\n", p.ID())
-		fmt.Printf("------------------------------------------\n")
-		fmt.Printf("For {0,0}, expected 0. output was %f\n", actual[0])
-		fmt.Printf("For {0,1}, expected 1. output was %f\n", actual[1])
-		fmt.Printf("For {1,0}, expected 1. output was %f\n", actual[2])
-		fmt.Printf("For {1,1}, expected 0. output was %f\n", actual[3])
+		b.WriteString(fmt.Sprintf("XOR Evaluation for genome %d\n", p.ID()))
+		b.WriteString(fmt.Sprintf("------------------------------------------\n"))
+		b.WriteString(fmt.Sprintf("For {0,0}, expected 0. output was %f\n", actual[0]))
+		b.WriteString(fmt.Sprintf("For {0,1}, expected 1. output was %f\n", actual[1]))
+		b.WriteString(fmt.Sprintf("For {1,0}, expected 1. output was %f\n", actual[2]))
+		b.WriteString(fmt.Sprintf("For {1,1}, expected 0. output was %f\n", actual[3]))
+		fmt.Print(b.String())
 	}
 
 	// Calculate the result
@@ -112,7 +114,7 @@ func main() {
 	flag.Parse()
 	//defer profile.Start(profile.CPUProfile).Stop()
 	if err := trials.Run(func(i int) (*neat.Experiment, error) {
-		ctx := starter.NewClassicContext(&Evaluator{})
+		ctx := starter.NewContext(&Evaluator{})
 		if exp, err := starter.NewExperiment(ctx, ctx, i); err != nil {
 			return nil, err
 		} else {

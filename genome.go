@@ -34,15 +34,14 @@ import (
 
 // An encoded solution
 type Genome struct {
-	ID              int         // Identifier for this genome
-	SpeciesIdx      int         // Index of species in the population
-	Nodes           Nodes       // Neuron definitions
-	Conns           Connections // Synapse definitions
-	Traits          []float64   // Trait values
-	Fitness         float64     // Fitness of genome as it relates to the problem itself
-	Improvement     float64     // Fitness of genome as it relates to the improvement of the population
-	OriginalFitness float64     // Original fitness of the genome. This may be different from the Fitness field if the Result provides both
-	Birth           int         // Generation during which this genome was born
+	ID          int         // Identifier for this genome
+	SpeciesIdx  int         // Index of species in the population
+	Nodes       Nodes       // Neuron definitions
+	Conns       Connections // Synapse definitions
+	Traits      []float64   // Trait values
+	Fitness     float64     // Fitness of genome as it relates to the problem itself
+	Improvement float64     // Fitness of genome as it relates to the improvement of the population
+	Birth       int         // Generation during which this genome was born
 }
 
 func (g Genome) Complexity() int { return len(g.Nodes) + len(g.Conns) }

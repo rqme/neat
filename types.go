@@ -30,12 +30,6 @@ import (
 	"fmt"
 )
 
-// Structure to hold the configuration and state of the experiment
-type Archive struct {
-	Config string
-	State  string
-}
-
 // A decoded solution
 type Phenome interface {
 	ID() int           // The identify of the underlying genome

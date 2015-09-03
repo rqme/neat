@@ -64,6 +64,7 @@ func Run(f func(int) (*neat.Experiment, error)) error {
 	var se, fi, it, no, co float64
 
 	// Begin the display
+	fmt.Printf("Beginning trials %v\n", time.Now().Format(time.RFC3339))
 	fmt.Printf("Run   Iters.   Seconds    Nodes     Conns    Fitness   Fail   Comment \n")
 	fmt.Printf("--- --------- --------- --------- --------- --------- ------ ---------\n")
 
