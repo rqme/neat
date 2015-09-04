@@ -55,11 +55,11 @@ func Run(f func(int) (*neat.Experiment, error)) error {
 	skip := make([]bool, n)
 	errs := make([]error, n)
 
-	secs := make([]float64, 0, n)
-	fits := make([]float64, 0, n)
-	iters := make([]float64, 0, n)
-	nodes := make([]float64, 0, n)
-	conns := make([]float64, 0, n)
+	var secs stats.Float64Data = make([]float64, 0, n)
+	var fits stats.Float64Data = make([]float64, 0, n)
+	var iters stats.Float64Data = make([]float64, 0, n)
+	var nodes stats.Float64Data = make([]float64, 0, n)
+	var conns stats.Float64Data = make([]float64, 0, n)
 
 	var se, fi, it, no, co float64
 
@@ -128,7 +128,7 @@ func Run(f func(int) (*neat.Experiment, error)) error {
 	}
 
 	// Display the summary
-	funcs := []func([]float64) (float64, error){stats.Mean, stats.Median, stats.StdDevP, stats.Min, stats.Max}
+	funcs := []func(stats.Float64Data) (float64, error){stats.Mean, stats.Median, stats.StdDevP, stats.Min, stats.Max}
 	labs := []string{"AVG", "MED", "SDV", "MIN", "MAX"} // 3 characters
 	var itm, sem, nom, com, fim [5]float64
 	if len(iters) > 0 {
