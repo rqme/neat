@@ -60,7 +60,7 @@ func (g *RealTime) SetCrossover(v bool) error {
 
 func (g *RealTime) Generate(curr neat.Population) (next neat.Population, err error) {
 	if len(curr.Genomes) == 0 {
-		//return g.generateFirst()
+		next, err = generateFirst(g.ctx, g.RealTimeSettings)
 	} else {
 		next, err = g.generateNext(curr)
 	}

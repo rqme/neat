@@ -79,38 +79,10 @@ func (g *Classic) SetCrossover(v bool) error {
 
 func (g *Classic) Generate(curr neat.Population) (next neat.Population, err error) {
 	if len(curr.Genomes) == 0 {
-		return g.generateFirst()
+		return generateFirst(g.ctx, g.ClassicSettings)
 	} else {
 		return g.generateNext(curr)
 	}
-}
-
-// Generates the initial population
-func (g *Classic) generateFirst() (next neat.Population, err error) {
-	// Create the first generation
-	next = neat.Population{
-		Generation: 0,
-		Species:    make([]neat.Species, 1, 10),
-		Genomes:    make([]neat.Genome, g.PopulationSize()),
-	}
-
-	// Ensure seed exists
-	seed := createSeed(g.ctx, g.ClassicSettings)
-
-	// Create the initial species
-	next.Species[0] = neat.Species{Example: seed}
-
-	// Create the genomes
-	for i := 0; i < g.PopulationSize(); i++ {
-		genome := neat.CopyGenome(seed)
-		genome.ID = g.ctx.NextID()
-		genome.SpeciesIdx = 0
-		if err = g.ctx.Mutator().Mutate(&genome); err != nil {
-			return
-		}
-		next.Genomes[i] = genome
-	}
-	return
 }
 
 // Generates a subsequent population based on the current one

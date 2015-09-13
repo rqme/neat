@@ -30,11 +30,39 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"sync"
 
 	"github.com/rqme/neat"
 )
 
-func generateFirst() {}
+// Generates the initial population
+func generateFirst(ctx neat.Context, cfg ClassicSettings) (next neat.Population, err error) {
+	// Create the first generation
+	next = neat.Population{
+		Generation: 0,
+		Species:    make([]neat.Species, 1, 10),
+		Genomes:    make([]neat.Genome, cfg.PopulationSize()),
+	}
+
+	// Create the genomes
+	wg := new(sync.WaitGroup)
+	for i := 0; i < len(next.Genomes); i++ {
+		wg.Add(1)
+		go func(i int) {
+			genome := createSeed(ctx, cfg)
+			genome.ID = ctx.NextID()
+			genome.SpeciesIdx = 0
+			next.Genomes[i] = genome
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+
+	// Create the initial species
+	next.Species[0] = neat.Species{Example: next.Genomes[0]}
+
+	return
+}
 
 // Creates the pool of potential parents, grouped by species' index. The list of genomes is also
 // sorted by fitness in decending order for future operations

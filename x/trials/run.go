@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecheney/profile"
 	"github.com/montanaflynn/stats"
 	"github.com/rqme/neat"
 )
@@ -42,9 +43,14 @@ var (
 	CheckStop  = flag.Bool("check-stop", false, "Consider trial a failure if stop condition not met")
 	ShowWork   = flag.Bool("show-work", false, "Evaluates the best genome separately, showing the detail ")
 	SkipEvolve = flag.Bool("skip-evolve", false, "Skips evolution phase if population restored. Use with -best to display archived population.")
+	Profile    = flag.Bool("profile", false, "Enables profiling")
 )
 
 func Run(f func(int) (*neat.Experiment, error)) error {
+
+	if *Profile {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
 
 	// Create the collection variables
 	n := *Trials
@@ -65,6 +71,16 @@ func Run(f func(int) (*neat.Experiment, error)) error {
 
 	// Begin the display
 	fmt.Printf("Beginning trials %v\n", time.Now().Format(time.RFC3339))
+	fmt.Printf("\t%d trials requested\n", *Trials)
+	if *CheckStop {
+		fmt.Println("\tstop signals successful trial")
+	}
+	if *SkipEvolve {
+		fmt.Println("\tskipping the evolution phase")
+	}
+	if *ShowWork {
+		fmt.Println("\tshowing the detailed evaluation of best in each generation")
+	}
 	fmt.Printf("Run   Iters.   Seconds    Nodes     Conns    Fitness   Fail   Comment \n")
 	fmt.Printf("--- --------- --------- --------- --------- --------- ------ ---------\n")
 
