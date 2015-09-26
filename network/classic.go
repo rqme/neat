@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 Brian Hummer (neat@boggo.net), All rights reserved.
+Copyright (c) 2015 Brian Hummer (brian@redq.me), All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
@@ -23,11 +23,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package network
 
 import (
-	. "github.com/rqme/errors"
-	"github.com/rqme/neat"
-
 	"bytes"
 	"fmt"
+
+	"github.com/rqme/neat"
 )
 
 type Neuron struct {
@@ -36,9 +35,23 @@ type Neuron struct {
 	X, Y float64 // Hint at where neuron might be positioned in a 2D representation
 }
 
+type Neurons []Neuron
+
 type Synapse struct {
-	Source, Target int
+	Source, Target int // Indexes of source and target neurons
 	Weight         float64
+}
+
+type Synapses []Synapse
+
+func (s Synapses) Len() int      { return len(s) }
+func (s Synapses) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s Synapses) Less(i, j int) bool {
+	if s[i].Source == s[j].Source {
+		return s[i].Target < s[j].Target
+	} else {
+		return s[i].Source == s[j].Source
+	}
 }
 
 type Activation func(float64) float64
@@ -46,19 +59,18 @@ type Activation func(float64) float64
 type Classic struct {
 
 	// Structure
-	Neurons    []Neuron
-	Synapses   []Synapse
-	Iterations int
+	Neurons  Neurons
+	Synapses Synapses
 
 	// Internal state
 	biases, inputs, hiddens, outputs int
 	funcs                            []Activation
 }
 
-func New(neurons []Neuron, synapses []Synapse, iterations int) (net *Classic, err error) {
+func New(neurons Neurons, synapses Synapses) (net *Classic, err error) {
 
 	// Begin a new network
-	net = &Classic{Neurons: neurons, Synapses: synapses, Iterations: iterations}
+	net = &Classic{Neurons: neurons, Synapses: synapses}
 
 	// Create the internal state and check for errors
 	oo := false    // out-of-order check
@@ -120,6 +132,8 @@ func New(neurons []Neuron, synapses []Synapse, iterations int) (net *Classic, er
 		}
 	}
 
+	// Sort the synapses for efficient processing
+	//sort.Sort(net.Synapses)
 	return
 }
 
@@ -138,8 +152,7 @@ func (n Classic) String() string {
 
 func (n Classic) Activate(inputs []float64) (outputs []float64, err error) {
 
-	// Create the data structures
-	errs := new(Errors)
+	// Create the data structure
 	val := make([]float64, len(n.Neurons))
 
 	// Set the biases
@@ -149,19 +162,15 @@ func (n Classic) Activate(inputs []float64) (outputs []float64, err error) {
 
 	// Copy inputs into the network
 	if len(inputs) > n.inputs {
-		errs.Add(fmt.Errorf("network.classic.Activate - There are more input values (%d) than input neurons (%d)", len(inputs), n.inputs))
-		err = errs.Err()
+		err = fmt.Errorf("network.classic.Activate - There are more input values (%d) than input neurons (%d)", len(inputs), n.inputs)
 		return
 	}
 	copy(val[n.biases:], inputs)
 
 	// Iterate the network synapse by synapse
-	for i := 0; i < n.Iterations; i++ {
-		for _, s := range n.Synapses {
-			v := n.funcs[s.Source](val[s.Source])
-			val[s.Target] += v * s.Weight
-			//neat.DBG("After iteration %d (%d->%d): %v", j, s.Source, s.Target, val)
-		}
+	for _, s := range n.Synapses {
+		v := n.funcs[s.Source](val[s.Source])
+		val[s.Target] += v * s.Weight
 	}
 
 	// Return the output values
@@ -171,8 +180,5 @@ func (n Classic) Activate(inputs []float64) (outputs []float64, err error) {
 		v := n.funcs[i+offset](val[i+offset])
 		outputs[i] = v
 	}
-
-	// Return output and any errors
-	err = errs.Err()
 	return
 }

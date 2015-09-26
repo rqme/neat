@@ -1,21 +1,21 @@
 {
   "ExperimentName": "Boxes NEAT",
-  "PopulationSize": 150,
-  "Iterations": 100,
+  "PopulationSize": 100,
+  "Iterations": 500,
   "NumInputs": 121,
-  "NumOutputs": 1,
+  "NumOutputs": 11,
   "FitnessType": 0,
   
-  "TargetNumberOfSpecies": 15,
+  "TargetNumberOfSpecies": 8,
   "CompatibilityModifier": 0.3,
   "CompatibilityThreshold": 3.0,
   
-  "DisjointCoefficient": 1,
-  "ExcessCoefficient": 1,
-  "WeightCoefficient": 0.4,
+  "DisjointCoefficient": 2.0,
+  "ExcessCoefficient": 2.0,
+  "WeightCoefficient": 1.0,
   
-  "AddConnProbability": 0.025,
-  "AddNodeProbability": 0.015,
+  "AddConnProbability": 0,
+  "AddNodeProbability": 0,
   "EnableProbability": 0.2,
   "HiddenActivation": 2,
   "MutateActivationProbability": 0.25,
@@ -34,6 +34,6 @@
   "OutputActivation": 2,
   "SurvivalThreshold": 0.2,
 
-  "ArchivePath": "/tmp/boxes",
-  "WebPath": "/tmp/boxes"
+  "ArchivePath": "/tmp/boxes/neat",
+  "WebPath": "/tmp/boxes/neat"
 }

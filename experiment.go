@@ -85,7 +85,7 @@ func Run(e *Experiment) error {
 
 	// Iterate the experiment
 	for e.iteration = 0; e.iteration < e.Iterations(); e.iteration++ {
-
+		//fmt.Println("iteration", e.iteration, "best", e.best.Fitness)
 		// Reset the innovation history
 		//e.mrk.Reset()
 

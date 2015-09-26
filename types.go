@@ -83,8 +83,8 @@ func (t Traits) IndexOf(name string) int {
 type FitnessType byte
 
 const (
-	Absolute FitnessType = iota
-	Relative
+	Absolute FitnessType = iota + 1 // 1
+	Relative                        // 2
 )
 
 func (f FitnessType) String() string {

@@ -1,10 +1,10 @@
 {
   "ExperimentName": "XOR",
-  "PopulationSize": 150,
+  "PopulationSize": 10,
   "Iterations": 100,
   "NumInputs": 2,
   "NumOutputs": 1,
-  "FitnessType": 0,
+  "FitnessType": 1,
   
   "TargetNumberOfSpecies": 15,
   "CompatibilityModifier": 0.3,

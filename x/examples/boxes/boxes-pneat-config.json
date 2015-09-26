@@ -1,9 +1,9 @@
 {
-  "ExperimentName": "Boxes HyperNEAT",
+  "ExperimentName": "Boxes P-NEAT",
   "PopulationSize": 100,
   "Iterations": 500,
-  "NumInputs": 4,
-  "NumOutputs": 1,
+  "NumInputs": 121,
+  "NumOutputs": 11,
   "FitnessType": 0,
   
   "TargetNumberOfSpecies": 8,
@@ -14,8 +14,8 @@
   "ExcessCoefficient": 2.0,
   "WeightCoefficient": 1.0,
   
-  "AddConnProbability": 0.1,
-  "AddNodeProbability": 0.03,
+  "AddConnProbability": 0,
+  "AddNodeProbability": 0,
   "EnableProbability": 0.2,
   "HiddenActivation": 2,
   "MutateActivationProbability": 0.25,
@@ -31,9 +31,9 @@
   "InterspeciesMatingRate": 0.001,
   "MateByAveragingProbability": 0.4,
   "MaxStagnation": 15,
-  "OutputActivation": 4,
+  "OutputActivation": 2,
   "SurvivalThreshold": 0.2,
 
-  "ArchivePath": "/tmp/boxes/hyperneat",
-  "WebPath": "/tmp/boxes/hyperneat"
+  "ArchivePath": "/tmp/boxes/pneat",
+  "WebPath": "/tmp/boxes/pneat"
 }

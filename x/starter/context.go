@@ -69,8 +69,12 @@ func NewContext(evl neat.Evaluator, options ...func(*Context)) *Context {
 	}
 
 	// Set the default helpers
-	if *ConfigName == "" {
-		ctx.Settings.ArchiveName = os.Args[0]
+	if ctx.Settings.ArchivePath == "" && *ConfigName == "" {
+		if len(os.Args) > 0 {
+			ctx.Settings.ArchiveName = os.Args[0]
+		} else {
+			ctx.Settings.ArchiveName = "experiment"
+		}
 	} else {
 		ctx.Settings.ArchiveName = *ConfigName // Can be overriden in settings file
 	}
@@ -83,6 +87,7 @@ func NewContext(evl neat.Evaluator, options ...func(*Context)) *Context {
 	ctx.mut = mutator.New(ctx, ctx, ctx)
 	ctx.src = &searcher.Concurrent{}
 	ctx.spc = speciater.NewDynamic(ctx, ctx)
+	//ctx.spc = &speciater.Classic{ClassicSettings: ctx}
 	ctx.vis = &visualizer.Web{WebSettings: ctx}
 
 	// Override with the options
@@ -149,6 +154,14 @@ func (c Context) MateByAveragingProbability() float64 { return c.Settings.MateBy
 // HyperNEAT decoder settings
 func (c Context) SubstrateLayers() []decoder.SubstrateNodes { return c.Settings.SubstrateLayers }
 
+// ESHyperNEAT decoder settings
+func (c Context) InitialDepth() int          { return c.Settings.InitialDepth }
+func (c Context) MaxDepth() int              { return c.Settings.MaxDepth }
+func (c Context) DivisionThreshold() float64 { return c.Settings.DivisionThreshold }
+func (c Context) VarianceThreshold() float64 { return c.Settings.VarianceThreshold }
+func (c Context) BandThreshold() float64     { return c.Settings.BandThreshold }
+func (c Context) IterationLevels() int       { return c.Settings.IterationLevels }
+
 // Classic generator settings
 func (c Context) PopulationSize() int                   { return c.Settings.PopulationSize }
 func (c Context) SeedGenome() neat.Genome               { return c.Settings.SeedGenome }
@@ -175,7 +188,6 @@ func (c Context) MutateSettingProbability() float64     { return c.Settings.Muta
 func (c Context) ReplaceSettingProbability() float64    { return c.Settings.ReplaceSettingProbability }
 func (c Context) AddNodeProbability() float64           { return c.Settings.AddNodeProbability }
 func (c Context) AddConnProbability() float64           { return c.Settings.AddConnProbability }
-func (c Context) AllowRecurrent() bool                  { return c.Settings.AllowRecurrent }
 func (c Context) HiddenActivation() neat.ActivationType { return c.Settings.HiddenActivation }
 func (c Context) DelNodeProbability() float64           { return c.Settings.DelNodeProbability }
 func (c Context) DelConnProbability() float64           { return c.Settings.DelConnProbability }

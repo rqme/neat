@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 Brian Hummer (neat@boggo.net), All rights reserved.
+Copyright (c) 2015 Brian Hummer (brian@redq.me), All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
@@ -58,12 +58,12 @@ func (d Classic) decode(g neat.Genome) (net neat.Network, err error) {
 	}
 
 	// Create the synapses
-	forward := true // Keep track of conenctions to determine if this is a feed-forward only network
+	//forward := true // Keep track of conenctions to determine if this is a feed-forward only network
 	synapses := make([]network.Synapse, 0, len(conns))
 	for _, cg := range conns {
-		src, tgt := nodes[nmap[cg.Source]], nodes[nmap[cg.Target]]
-		forward = forward && src.Y < tgt.Y
 		if cg.Enabled {
+			//src, tgt := nodes[nmap[cg.Source]], nodes[nmap[cg.Target]]
+			//forward = forward && src.Y < tgt.Y
 			synapses = append(synapses, network.Synapse{
 				Source: nmap[cg.Source],
 				Target: nmap[cg.Target],
@@ -72,10 +72,11 @@ func (d Classic) decode(g neat.Genome) (net neat.Network, err error) {
 		}
 	}
 
-	net, err = network.New(neurons, synapses, calcIters(neurons, synapses))
+	net, err = network.New(neurons, synapses)
 	return
 }
 
+// Removed recurrent functionality 2015-09-15 (BSH) to simplify and improve performance. Leaving this for now in case I bring it back.
 func calcIters(neurons []network.Neuron, synapses []network.Synapse) int {
 	a := make(map[float64]bool, 10)
 	b := make(map[float64]bool, 10)

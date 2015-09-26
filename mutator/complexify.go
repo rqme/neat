@@ -37,7 +37,6 @@ type ComplexifySettings interface {
 	WeightRange() float64                  // The mutation range of the weight. If x, range is [-x,x]
 	AddNodeProbability() float64           // Probablity a node will be added to the genome
 	AddConnProbability() float64           // Probability a connection will be added to the genome
-	AllowRecurrent() bool                  // Allow recurrent connections to be added
 	HiddenActivation() neat.ActivationType // Activation type to assign to new nodes
 }
 
@@ -133,16 +132,8 @@ func (m *Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 	c := 0
 	for _, src := range g.Nodes {
 		for _, tgt := range g.Nodes {
-			if src.Innovation == tgt.Innovation {
-				continue // Must be two unconnected. TODO: Allow self-connections?
-			}
-			if tgt.NeuronType == neat.Bias || tgt.NeuronType == neat.Input {
-				continue // cannot connect back to input layer
-			} else if src.NeuronType == neat.Output && tgt.NeuronType == neat.Output {
-				continue
-			}
-			if !m.AllowRecurrent() && tgt.Y <= src.Y {
-				continue
+			if src.Y >= tgt.Y {
+				continue // do not allow recurrent
 			}
 			found := false
 			for _, c2 := range g.Conns {
@@ -152,12 +143,7 @@ func (m *Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 				}
 			}
 			if !found {
-				conns[c] = neat.Connection{
-					Source:  src.Innovation,
-					Target:  tgt.Innovation,
-					Enabled: true,
-					Weight:  (rng.Float64()*2.0 - 1.0) * m.WeightRange(),
-				}
+				conns[c] = neat.Connection{Source: src.Innovation, Target: tgt.Innovation}
 				c += 1
 			}
 		}
@@ -165,6 +151,8 @@ func (m *Complexify) addConn(rng *rand.Rand, g *neat.Genome) {
 
 	// Go's range over maps is random, so take the first, if any, availble connection
 	for _, conn := range conns {
+		conn.Enabled = true
+		conn.Weight = (rng.Float64()*2.0 - 1.0) * m.WeightRange()
 		conn.Innovation = m.ctx.Innovation(neat.ConnInnovation, conn.Key())
 		g.Conns[conn.Innovation] = conn
 		break

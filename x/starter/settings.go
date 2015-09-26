@@ -58,6 +58,14 @@ type Settings struct {
 	// HyperNEAT decoder settings
 	SubstrateLayers []decoder.SubstrateNodes
 
+	// ESHyperNEAT decoder settings
+	InitialDepth      int
+	MaxDepth          int
+	DivisionThreshold float64
+	VarianceThreshold float64
+	BandThreshold     float64
+	IterationLevels   int
+
 	// Classic generator settings
 	PopulationSize         int
 	NumInputs              int
@@ -84,7 +92,6 @@ type Settings struct {
 	ReplaceSettingProbability   float64             // Probability that the setting will be replaced
 	AddNodeProbability          float64             // Probablity a node will be added to the genome
 	AddConnProbability          float64             // Probability a connection will be added to the genome
-	AllowRecurrent              bool                // Allow recurrent connections to be added
 	HiddenActivation            neat.ActivationType // Activation type to assign to new nodes
 	DelNodeProbability          float64             // Probablity a node will be removed to the genome
 	DelConnProbability          float64             // Probability a connection will be removed to the genome

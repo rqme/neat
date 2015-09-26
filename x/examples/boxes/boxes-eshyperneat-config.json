@@ -1,5 +1,5 @@
 {
-  "ExperimentName": "Boxes HyperNEAT",
+  "ExperimentName": "Boxes ESHyperNEAT",
   "PopulationSize": 100,
   "Iterations": 500,
   "NumInputs": 4,
@@ -34,6 +34,13 @@
   "OutputActivation": 4,
   "SurvivalThreshold": 0.2,
 
-  "ArchivePath": "/tmp/boxes/hyperneat",
-  "WebPath": "/tmp/boxes/hyperneat"
+  "InitialDepth": 3,
+  "MaxDepth": 3,
+  "DivisionThreshold": 0.3,
+  "VarianceThreshold": 0.3,
+  "BandThreshold": 0.3,
+  "IterationLevels": 1,
+
+  "ArchivePath": "/tmp/boxes/eshyperneat",
+  "WebPath": "/tmp/boxes/eshyperneat"
 }

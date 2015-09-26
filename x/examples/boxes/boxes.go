@@ -36,7 +36,6 @@ import (
 	"path"
 
 	svg "github.com/ajstarks/svgo"
-	"github.com/davecheney/profile"
 	"github.com/rqme/neat"
 	"github.com/rqme/neat/decoder"
 	"github.com/rqme/neat/mutator"
@@ -46,10 +45,12 @@ import (
 )
 
 var (
-	HyperNEAT  = flag.Bool("hyperneat", false, "Use HyperNEAT decoder")
-	Resolution = flag.Int("resolution", 11, "The resolution of the field. Default is 11.")
-	Cases      = flag.Int("cases", 75, "The number of cases to evaluate per phenome") // called trials in the paper
-	WorkPath   = flag.String("work-path", ".", "Output directory for maze diagrams")
+	NEAT        = flag.Bool("neat", false, "User the Classic NEAT decoder")
+	HyperNEAT   = flag.Bool("hyperneat", false, "Use HyperNEAT decoder")
+	ESHyperNEAT = flag.Bool("eshyperneat", false, "Use ESHyperNEAT decoder")
+	Resolution  = flag.Int("resolution", 11, "The resolution of the field. Default is 11.")
+	Cases       = flag.Int("cases", 75, "The number of cases to evaluate per phenome") // called trials in the paper
+	WorkPath    = flag.String("work-path", ".", "Output directory for maze diagrams")
 )
 
 // This experiment is based on the Visual Discrimination experiment described in the paper
@@ -62,7 +63,6 @@ type Case struct {
 }
 
 func (c Case) String() string {
-	fmt.Println("Case.String")
 	r := *Resolution
 	b := bytes.NewBufferString(" ")
 	for x := 0; x < r; x++ {
@@ -173,7 +173,6 @@ func putBig(r, x, y int) (int, int) {
 // activation over all 75 trials. This fitness function rewards generalization and provides a
 // smooth gradient for solutions that are close but not perfect. (Stanley, p.17)
 func (e Evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
-
 	sum := 0.0
 	for i := 0; i < len(e.cases); i++ {
 		d, err := e.findBox(p, i)
@@ -195,7 +194,6 @@ func (e Evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
 // goal is to locate the center of the larger object in the visual field. The target field
 // specifies this location as the node with the highest level of activation. (Stanley, p.16)
 func (e Evaluator) findBox(p neat.Phenome, i int) (float64, error) {
-
 	c := e.cases[i]
 	outputs, err := p.Activate(c.Inputs)
 	if err != nil {
@@ -204,7 +202,7 @@ func (e Evaluator) findBox(p neat.Phenome, i int) (float64, error) {
 
 	var max float64
 	var idx int
-	for j := 0; j < len(outputs); i++ {
+	for j := 0; j < len(outputs); j++ {
 		if outputs[j] > max {
 			max = outputs[j]
 			idx = j
@@ -261,11 +259,14 @@ func (e Evaluator) showGrid(id int, c Case, px, py int) error {
 
 func main() {
 	flag.Parse()
-	defer profile.Start(profile.CPUProfile).Stop()
 	if *HyperNEAT {
 		fmt.Println("Using HyperNEAT decoder")
+	} else if *ESHyperNEAT {
+		fmt.Println("Using ESHyperNEAT decoder")
+	} else if *NEAT {
+		fmt.Println("Using Classic NEAT decoder")
 	} else {
-		fmt.Println("Using NEAT decoder")
+		log.Fatal("Please specify a decoder. See --help.")
 	}
 	// Ensure Cases is a multiple of 3
 	if *Cases%3 != 0 {
@@ -280,10 +281,15 @@ func main() {
 		if *HyperNEAT {
 			ctx = starter.NewContext(eval, func(ctx *starter.Context) {
 				ctx.SetMutator(mutator.NewComplete(ctx, ctx, ctx, ctx, ctx, ctx))
-				ctx.SetDecoder(&decoder.HyperNEAT{CppnDecoder: decoder.Classic{}, HyperNEATSettings: newHyperNEAT(ctx)})
+				ctx.SetDecoder(&decoder.HyperNEAT{CppnDecoder: decoder.Classic{}, HyperNEATSettings: newSettingsWithLayers(ctx)})
+			})
+		} else if *ESHyperNEAT {
+			ctx = starter.NewContext(eval, func(ctx *starter.Context) {
+				ctx.SetMutator(mutator.NewComplete(ctx, ctx, ctx, ctx, ctx, ctx))
+				ctx.SetDecoder(decoder.NewESHyperNEAT(newSettingsWithLayers(ctx), decoder.Classic{}))
 			})
 		} else {
-			ctx = starter.NewContext(eval)
+			ctx = starter.NewContext(eval) // Classic NEAT decoder
 		}
 		if exp, err := starter.NewExperiment(ctx, ctx, i); err != nil {
 			return nil, err

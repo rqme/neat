@@ -5,19 +5,19 @@ import (
 	"github.com/rqme/neat/decoder"
 )
 
-type HyperNEATSettings struct {
-	decoder.HyperNEATSettings
+type SettingsWithLayers struct {
+	decoder.ESHyperNEATSettings
 	layers []decoder.SubstrateNodes
 }
 
-func (h HyperNEATSettings) SubstrateLayers() []decoder.SubstrateNodes { return h.layers }
+func (h SettingsWithLayers) SubstrateLayers() []decoder.SubstrateNodes { return h.layers }
 
 // The solution substrate is configured as a state-space sandwich that includes two sheets: (1) The
 // visual field is a two-dimensional array of sensors that are either on or off (i.e. black or
 // white); (2) The target field is an equivalent two-dimensional array of outputs that are
 // activated at variable intensity between zero and one. (Stanley, p.15)
-func newHyperNEAT(cfg decoder.HyperNEATSettings) (hns HyperNEATSettings) {
-	hns.HyperNEATSettings = cfg
+func newSettingsWithLayers(cfg decoder.ESHyperNEATSettings) (hns SettingsWithLayers) {
+	hns.ESHyperNEATSettings = cfg
 
 	// Create the substrate layers
 	r := *Resolution

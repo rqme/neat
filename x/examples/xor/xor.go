@@ -102,6 +102,9 @@ func (e Evaluator) Evaluate(p neat.Phenome) (r neat.Result) {
 	}
 
 	// Calculate the result
+	if stop {
+		fmt.Println("Stopping", p.ID())
+	}
 	r = result.New(p.ID(), math.Pow(4.0-sum, 2.0), err, stop)
 	return
 }

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015 Brian Hummer (neat@boggo.net), All rights reserved.
+Copyright (c) 2015 Brian Hummer (brian@redq.me), All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted
 provided that the following conditions are met:
@@ -27,7 +27,6 @@ import (
 	"math"
 
 	"github.com/rqme/neat"
-	"github.com/rqme/neat/network"
 )
 
 // Special case: 1 layer of nodes in this case, examine nodes to separate out "vitural layers" by neuron type
@@ -50,7 +49,6 @@ type HyperNEAT struct {
 // activation, too.
 
 func (d *HyperNEAT) Decode(g neat.Genome) (p neat.Phenome, err error) {
-
 	// Validate the number of inputs and outputs
 	if err = d.validate(g); err != nil {
 		return
@@ -63,39 +61,33 @@ func (d *HyperNEAT) Decode(g neat.Genome) (p neat.Phenome, err error) {
 		return nil, err
 	}
 
-	// Set the IDs of the nodes and map them
+	// Create a new Substrate
 	layers := d.SubstrateLayers()
-	neurons := make([]network.Neuron, 0, len(layers)*len(layers[0]))
-	cnt := 0
+	ncnt := len(layers[0])
+	ccnt := 0
+	for i := 1; i < len(layers); i++ {
+		ncnt += len(layers[i])
+		ccnt += len(layers[i]) * len(layers[i-1])
+	}
+	s := &Substrate{
+		Nodes: make([]SubstrateNode, 0, ncnt),
+		Conns: make([]SubstrateConn, 0, ccnt),
+	}
+
+	// Add the nodes to the substrate
 	i := 0
-	for j, l := range layers {
+	for _, l := range layers {
 		// TODO: Should I sort the nodes by position in the network?
-		for k, n := range l {
-			l[k].id = i
-			neuron := network.Neuron{NeuronType: n.NeuronType}
-			neuron.X, neuron.Y = pos2D(n.Position)
-			switch n.NeuronType {
-			case neat.Input, neat.Bias:
-				neuron.ActivationType = neat.Direct
-			default:
-				neuron.ActivationType = neat.Sigmoid
-			}
-			neurons = append(neurons, neuron)
+		for j, n := range l {
+			l[j].id = i
+			s.Nodes = append(s.Nodes, n)
 			i += 1
-		}
-		layers[j] = l
-		if j > 0 {
-			cnt += len(layers[j]) * len(layers[j-1])
 		}
 	}
 
-	// Adjust positions for better layout
-	d.adjPositions(neurons)
-
-	// Build the network from the substrates
+	// Create connections
 	var outputs []float64 // output from the Cppn
 	wr := d.WeightRange()
-	synapses := make([]network.Synapse, 0, cnt)
 	for l := 1; l < len(layers); l++ {
 		for _, src := range layers[l-1] {
 			for _, tgt := range layers[l] {
@@ -105,16 +97,19 @@ func (d *HyperNEAT) Decode(g neat.Genome) (p neat.Phenome, err error) {
 				}
 				w := math.Abs(outputs[l-1])
 				if w > 0.2 {
-					synapse := network.Synapse{Source: src.id, Target: tgt.id, Weight: math.Copysign((w-0.2)*wr/0.8, outputs[l-1])}
-					synapses = append(synapses, synapse)
+					s.Conns = append(s.Conns, SubstrateConn{
+						Source: src.id,
+						Target: tgt.id,
+						Weight: math.Copysign((w-0.2)*wr/0.8, outputs[l-1]),
+					})
 				}
 			}
 		}
 	}
 
 	// Return the new network
-	var net *network.Classic
-	net, err = network.New(neurons, synapses, len(layers))
+	var net neat.Network
+	net, err = s.Decode()
 	if err != nil {
 		return nil, err
 	}
@@ -161,35 +156,4 @@ func (d *HyperNEAT) validate(g neat.Genome) error {
 	}
 
 	return nil
-}
-
-// Adjusts neuron positions so that network is layed out in layers in 2D
-func (d *HyperNEAT) adjPositions(neurons []network.Neuron) {
-	layers := d.SubstrateLayers()
-	x := (1.0 - float64(len(layers)-1)*0.05) / float64(len(layers))
-	h := 0.0
-	for _, l := range layers {
-		for _, n := range l {
-			neuron := neurons[n.id]
-			neuron.X = (neuron.X + 1.0) / 2.0
-			neuron.Y = ((neuron.Y+1.0)/2.0)*x + h
-			neurons[n.id] = neuron
-		}
-		h += x + 0.05
-	}
-}
-
-func pos2D(pos []float64) (x, y float64) {
-	x = pos[0]
-	y = pos[1]
-	// TODO: handle more dimensions, probably just a Z dimension. Should we place it in same x/y and let visualizer move it?
-	/*
-		for i:=2; 2 < len(pos);i++ {
-			if i%2 == 0 {
-				x += 0.005
-			} else {
-				y += 0.005
-			}
-		}*/
-	return
 }
