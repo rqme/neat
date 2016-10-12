@@ -1,3 +1,8 @@
+# Update
+This project has been [discontinued](https://medium.com/@hummerb/evo-by-klokare-new-library-same-concept-9eff96126ec0#.rywgvow3a) here and continued under a new [project called EVO](https://github.com/klokare/evo) by klokare. 
+
+
+
 RedQ.NEAT
 ==========
 This a Go implementation of NeuralEvolution of Augmenting Topologies (NEAT). From the [NEAT F.A.Q](http://www.cs.ucf.edu/~kstanley/neat.html#FAQ1).
